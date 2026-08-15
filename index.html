@@ -27,6 +27,29 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="住民税・所得税・国保軽減・JASSO奨学金 判定シミュレーター">
 <meta name="twitter:description" content="収入と控除を入力すると、所得税・住民税・国保の軽減・JASSOの支援区分が判定できます。入力内容は保存も送信もされません。">
+<!-- 検索結果で「何をするページか」が伝わるようにする。
+     使うのに料金も登録もいらないので offers を 0 円で明示している。 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "住民税・所得税・国保軽減・JASSO奨学金 判定シミュレーター",
+  "url": "https://r59538904-art.github.io/tax-scholarship-simulator/",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "ブラウザ（インストール不要）",
+  "inLanguage": "ja",
+  "description": "収入と控除を入力すると、所得税・住民税（均等割／所得割）の課税額、国民健康保険料の軽減割合、JASSO給付奨学金・授業料等減免の支援区分を判定します。全国1,719市区町村の級地に対応。計算はすべてブラウザ内で行い、入力内容は保存も送信もされません。",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+  "isAccessibleForFree": true,
+  "featureList": [
+    "所得税額の計算（総合課税・分離課税・復興特別所得税）",
+    "住民税額の計算（均等割・所得割・非課税限度額・調整控除）",
+    "国民健康保険料の軽減判定（7割・5割・2割）",
+    "JASSO給付奨学金と授業料等減免の支援区分の判定",
+    "全国1,719市区町村の級地・47都道府県の税率に対応"
+  ]
+}
+</script>
 <link rel="stylesheet" href="assets/style.css">
 <!-- 配色は最初の描画より前に決める（ダーク設定の人に白い画面が一瞬出るのを防ぐ） -->
 <script src="assets/theme.js"></script>

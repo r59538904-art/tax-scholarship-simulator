@@ -558,12 +558,23 @@ section('D-2 危険なAPIを使っていないこと');
     /<link[^>]*rel=["']canonical["'][^>]*href=["']https:\/\//i.test(html), '未指定');
   ok('OGP と Twitter Card が指定されている',
     /property=["']og:title["']/.test(html) && /name=["']twitter:card["']/.test(html), '未指定');
+  /* 構造化データは書き間違えると検索側に無視されるだけで画面には出ないので、
+   * JSONとして読めることと、URLがcanonicalと一致することを機械で見る。 */
+  const ld = (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
+  let ldObj = null;
+  try { ldObj = JSON.parse(ld); } catch (e) { ldObj = null; }
+  ok('構造化データ（JSON-LD）がJSONとして正しい', !!ldObj, '解析できない');
+  ok('構造化データのURLが canonical と一致する',
+    !!ldObj && ldObj.url === (html.match(/rel=["']canonical["'] href=["']([^"']+)/) || [])[1], '不一致');
   ok('ファビコンが埋め込みで404を出さない',
     /<link[^>]*rel=["']icon["'][^>]*href=["']data:image/i.test(html), '外部ファビコン');
   ok('CSP に frame-ancestors を入れていない（metaでは無視されるため）',
     !/<meta[^>]*Content-Security-Policy[^>]*frame-ancestors/i.test(html), 'metaに指定あり');
-  ok('HTMLにインライン script がない（CSPを厳しくしても動くように）',
-    !/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/.test(html), 'インラインscript検出');
+  /* 実行されるインラインJSがないこと。JSON-LD は type が JavaScript ではないので
+   * ブラウザは実行せず、CSP の script-src の対象にもならない（データ置き場扱い）。 */
+  ok('実行されるインライン script がない（CSPを厳しくしても動くように）',
+    !/<script(?![^>]*\bsrc=)(?![^>]*type="application\/ld\+json")[^>]*>[\s\S]*?<\/script>/.test(html),
+    'インラインscript検出');
   ok('読み込んでいるスクリプトはすべて assets 配下の相対パス',
     [...html.matchAll(/<script[^>]*\bsrc="([^"]+)"/g)].every(m => /^assets\/[\w.-]+\.js$/.test(m[1])), '想定外のsrc');
 }
