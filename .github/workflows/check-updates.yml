@@ -1,0 +1,151 @@
+# 公表資料の見張り
+#
+# 税制の公表時期に合わせて自動で走り、収録値と公式ページがズレていたら
+# GitHub の Issue を立てます（＝GitHubからメール／スマホ通知が届きます）。
+#
+# ★ データは自動で書き換えません。人が一次資料を見て直す前提です。
+name: 税制データの更新チェック
+
+on:
+  schedule:
+    # 税制の公表時期に合わせて、日本時間の朝9時に流す（cron は UTC なので 0:00）
+    - cron: '0 0 5 1 *'   # 1月5日  … 前年12月の税制改正大綱を反映する時期
+    - cron: '0 0 5 4 *'   # 4月5日  … 国保の政令改正（3月末公表）
+    - cron: '0 0 5 6 *'   # 6月5日  … 住民税の当年度課税・都道府県の超過課税
+    - cron: '0 0 5 7 *'   # 7月5日  … JASSOの当年度案内
+    - cron: '0 0 5 10 *'  # 10月5日 … 国税庁の年末調整資料（別表第五）
+  workflow_dispatch:       # 手動でも回せる
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 公表資料と収録値を突き合わせる
+        id: check
+        run: |
+          set +e
+          node test/check-updates.js > check-result.txt 2>&1
+          echo "---- 結果 ----"
+          cat check-result.txt
+          # 「要確認」か「取得失敗」が1件でもあれば、人に知らせる
+          if grep -qE '要確認 [1-9]|取得失敗 [1-9]' check-result.txt; then
+            echo "needs_review=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_review=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 47都道府県の超過課税を突き合わせる
+        id: pref
+        run: |
+          set +e
+          node test/verify-prefectures.js > pref-result.txt 2>&1
+          echo "---- 結果 ----"
+          tail -5 pref-result.txt
+          if grep -qE '要確認 [1-9]' pref-result.txt; then
+            echo "pref_review=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "pref_review=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 結果を成果物として残す
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: check-results
+          path: |
+            check-result.txt
+            pref-result.txt
+          retention-days: 90
+
+      - name: 差分があれば Issue を立てる
+        if: steps.check.outputs.needs_review == 'true' || steps.pref.outputs.pref_review == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = [
+              '公表資料と収録値のあいだにズレの疑いが見つかりました。',
+              '',
+              '> **⚠ 「要確認」は必ずしも誤りではありません。**',
+              '> ページの言い回しが変わった／表が画像になった／複数年度が併記されている、',
+              '> でも同じ表示になります。**必ず一次資料を開いて確かめてください。**',
+              '',
+              '## 直しかた',
+              '',
+              '1. 下の結果に出ている URL を開いて、実際の数値を確認する',
+              '2. 改正されていれば `assets/data.js` を直す（出典 `SOURCES` も更新する）',
+              '3. 期待値を先にテストへ書く（実装から逆算しない）',
+              '4. 次を順に実行して全件通ることを確認する',
+              '',
+              '```',
+              'node test/verify.js',
+              'node test/verify-calc.js',
+              'node test/verify-matrix.js',
+              'node test/build-tax-parameters.js',
+              'node test/audit.js',
+              'node test/browser-check.js',
+              '```',
+              '',
+              '5. `assets/data.js` の `VERIFIED_AT` を今日の日付に更新する',
+              '',
+              '## 公表資料のチェック結果',
+              '',
+              '```',
+              fs.readFileSync('check-result.txt', 'utf8').slice(0, 30000),
+              '```',
+              '',
+              '## 47都道府県のチェック結果',
+              '',
+              '```',
+              fs.readFileSync('pref-result.txt', 'utf8').slice(0, 30000),
+              '```'
+            ].join('\n');
+
+            const title = `税制データの確認が必要です（${new Date().toISOString().slice(0, 10)}）`;
+            // 同じ内容の Issue が開いていれば、重ねずにコメントを足す
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'tax-data'
+            });
+            if (issues.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: issues[0].number, body
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['tax-data']
+              });
+            }
+
+      - name: 差分がなければ、開いている Issue を閉じる
+        if: steps.check.outputs.needs_review == 'false' && steps.pref.outputs.pref_review == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'tax-data'
+            });
+            for (const it of issues) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: it.number,
+                body: `${new Date().toISOString().slice(0, 10)} のチェックでは、収録値はすべて公表資料の本文で確認できました。この Issue を閉じます。`
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo,
+                issue_number: it.number, state: 'closed'
+              });
+            }

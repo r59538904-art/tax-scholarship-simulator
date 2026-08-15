@@ -1,0 +1,74 @@
+# 変更を入れるたびに全検証を回す
+#
+# 税額計算は「動いているように見えて数百円ずれる」ことがあるため、
+# 計算の回帰・総当たり・画面表示まで毎回まとめて確認します。
+name: 検証
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 計算の回帰検証（公式計算例との1円単位突合を含む）
+        run: node test/verify.js
+
+      - name: 計算の逐一検証（境界値・端数まで条文と突合）
+        run: node test/verify-calc.js
+
+      - name: 総当たり検証（法令から独立に書いたオラクルと突合）
+        run: node test/verify-matrix.js
+
+      - name: 税制パラメータJSONを生成（data.js との差分がないこと）
+        run: |
+          node test/build-tax-parameters.js
+          if ! git diff --quiet -- tax-parameters.json; then
+            echo "::error::tax-parameters.json が data.js と食い違っています。"
+            echo "node test/build-tax-parameters.js を実行して結果をコミットしてください。"
+            git --no-pager diff -- tax-parameters.json
+            exit 1
+          fi
+
+      - name: 網羅監査（不変条件・fuzz・静的検査）
+        run: node test/audit.js
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Chrome を用意する
+        uses: browser-actions/setup-chrome@v1
+        id: chrome
+        with:
+          chrome-version: stable
+
+      - name: 画面の自動検証（表示・配色・スマホ幅・PDF出力）
+        env:
+          CHROME_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: node test/browser-check.js
+
+      - name: スクリーンショットとPDFを残す
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: test/shots/
+          retention-days: 30

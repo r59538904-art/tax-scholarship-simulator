@@ -1,0 +1,5 @@
+# ブラウザ検証で作られる一時ファイル
+test/.chrome-*/
+test/shots/
+node_modules/
+*.log
