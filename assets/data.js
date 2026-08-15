@@ -477,7 +477,18 @@
    * data.js を直したら VERIFIED_AT も必ず更新すること。
    * ----------------------------------------------------------------*/
   var VERIFIED_AT = '2026-08-16';
-  var NEXT_REVIEW = '2026-10-05';   // 国税庁の年末調整資料（別表第五）の公表時期
+  var REVIEW_CYCLE_MONTHS = 1;      // 1か月ごとに見直す
+
+  /* 次回の確認予定日は VERIFIED_AT から自動で出す。
+   * 直書きにすると VERIFIED_AT だけ更新して次回日を直し忘れ、
+   * 「最終確認は新しいのに期限切れ表示のまま」になるため。
+   * ローカル時刻で組み立てる（toISOString だと時差で1日ずれる）。 */
+  var NEXT_REVIEW = (function () {
+    var p = VERIFIED_AT.split('-');
+    var d = new Date(Number(p[0]), Number(p[1]) - 1 + REVIEW_CYCLE_MONTHS, Number(p[2]));
+    var two = function (v) { return (v < 10 ? '0' : '') + v; };
+    return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
+  })();
 
   var SOURCES = [
     { c: '所得税', t: '国税庁 No.1199 基礎控除', u: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1199.htm' },
@@ -551,6 +562,7 @@
     DONATION: DONATION,
     SOURCES: SOURCES,
     VERIFIED_AT: VERIFIED_AT,
+    REVIEW_CYCLE_MONTHS: REVIEW_CYCLE_MONTHS,
     NEXT_REVIEW: NEXT_REVIEW
   };
 
