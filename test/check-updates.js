@@ -54,9 +54,8 @@ const WATCH = [
     expect: () => [D.INSURANCE.quakeIncomeMax], note: '所得税の上限5万円' },
   /* 速算表は「収入×割合−控除額」の形なので、控除額のほうを見る */
   { cat: '国税庁', name: '公的年金等の課税関係', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1600.htm',
-    expect: () => [D.PENSION_DEDUCTION.steps[0][2], D.PENSION_DEDUCTION.steps[1][2],
-      D.PENSION_DEDUCTION.steps[2][2]],
-    note: '速算表の控除額 27.5万・68.5万・145.5万' },
+    expect: () => [D.PENSION_DEDUCTION.steps[0][2]],
+    note: '速算表の控除額 27.5万円（このページに載るのはここまで。残りは別表）' },
   { cat: '国税庁', name: '退職所得', url: 'https://www.nta.go.jp/taxes/shiraberu/taxanswer/shotoku/1420.htm',
     expect: () => [D.RETIREMENT.perYearUnder20, D.RETIREMENT.min,
       D.RETIREMENT.base20, D.RETIREMENT.perYearOver20],
@@ -67,7 +66,10 @@ const WATCH = [
     expect: () => [D.FOREST.specialDeduction], note: '特別控除50万円' },
 
   { cat: '総務省', name: '森林環境税', url: 'https://www.soumu.go.jp/main_sosiki/jichi_zeisei/czaisei/04000067.html',
-    expect: () => [D.KINTOWARI.forest], note: '国税1,000円' },
+    expectText: ['森林環境税'],
+    manualNote: '税額（年額1,000円）はページ本文に出てこない（図表・PDF）。' +
+      '金額そのものは test/verify-prefectures.js が自治体ページで毎回確認している',
+    note: 'ページの存在と制度名だけ確認' },
 
   { cat: 'JASSO', name: '在学採用の家計基準', url: 'https://www.jasso.go.jp/shogakukin/about/kyufu/kakei/zaigaku.html',
     expect: () => D.JASSO.kubun.filter(k => k.hi > 100).map(k => k.hi),
@@ -78,8 +80,12 @@ const WATCH = [
     expect: () => [D.JASSO.monthly['大学・短期大学・専修学校（専門課程）']['国公立'][1],
       D.JASSO.monthly['大学・短期大学・専修学校（専門課程）']['私立'][1]],
     note: '第Ⅰ区分の自宅外 国公立66,700円・私立75,800円' },
+  /* このページは本文がJavaScriptで描画されるため、取得しても中身が読めない。
+   * 「確認できた」ふりをせず、最初から手で見る項目として扱う。 */
   { cat: 'JASSO', name: '第一種の家計基準', url: 'https://www.jasso.go.jp/shogakukin/about/taiyo/taiyo_1shu/kakei/zaigaku.html',
-    expect: () => [D.JASSO.taiyoIchishu], note: '189,400円' },
+    manualOnly: true,
+    manualNote: '本文がJavaScriptで描画されるため取得しても読めない。' +
+      '家計基準の目安（189,400円）は公表時期に手でページを開いて確認する' },
 
   { cat: '国保', name: '軽減判定（新潟市）', url: 'https://www.niigata.lg.jp/kurashi/hoken/kokuho/hokenryo/henko.html',
     expect: () => [D.KOKUHO.base, D.KOKUHO.per5, D.KOKUHO.per2],
@@ -136,6 +142,11 @@ async function fetchText(url) {
   console.log('-----|------|------|------');
 
   for (const wch of targets) {
+    // 自動では読めないと分かっているものは、取りに行かず手動確認欄に回す
+    if (wch.manualOnly) {
+      console.log(`${wch.cat} | ${wch.name} | — 手で確認 | ${wch.manualNote.slice(0, 40)}…`);
+      continue;
+    }
     let text = null, err = null;
     for (const u of [wch.url, wch.alt].filter(Boolean)) {
       try { text = await fetchText(u); break; } catch (e) { err = e.message; }
@@ -168,6 +179,18 @@ async function fetchText(url) {
 
   console.log('\n' + '='.repeat(70));
   console.log(`変更なし ${same} / 要確認 ${differ} / 取得失敗 ${failed}`);
+
+  /* 金額が画像やPDFにあってページ本文から拾えないものは、
+   * 「確認できた」ふりをせず、手で見る項目として毎回並べる。 */
+  const manual = targets.filter(w => w.manualNote);
+  if (manual.length) {
+    console.log('\n■ 自動では金額を確認できない項目（公表時期に手で開いてください）');
+    manual.forEach(w => {
+      console.log(`\n  ・${w.cat}／${w.name}`);
+      console.log(`      ${w.manualNote}`);
+      console.log(`      → ${w.url}`);
+    });
+  }
 
   if (needsEyes.length) {
     console.log('\n■ 人の目で確認してほしい項目');
