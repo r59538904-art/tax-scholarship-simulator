@@ -49,7 +49,7 @@ jobs:
           cp index.html _site/
           cp assets/*.js assets/*.css _site/assets/
           cp docs/*.md _site/docs/
-          cp README.md tax-parameters.json _site/
+          cp README.md tax-parameters.json robots.txt sitemap.xml _site/
           # 検証スクリプトは公開物に含めない（サイトの動作には不要）
           ls -R _site | head -30
 

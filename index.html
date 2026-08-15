@@ -9,8 +9,24 @@
 <meta name="referrer" content="no-referrer">
 <!-- 外部への通信を一切許可しない。万一スクリプトが混入しても外に出せないようにする。
      'unsafe-inline' を style-src に入れているのは、結果表示で要素の style 属性
-     （ゲージの幅など）を組み立てているため。script は self のみ。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+     （ゲージの幅など）を組み立てているため。script は self のみ。
+     frame-ancestors は <meta> では無視される（HTTPヘッダー専用）ため入れていない。
+     GitHub Pages はヘッダーを設定できないので、自前サーバに載せる際は
+     Content-Security-Policy: frame-ancestors 'none' をヘッダーで付けること。 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
+<!-- ファビコンは外部ファイルにせずSVGを直接埋め込む（404を出さず、追加の通信もしない） -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314568b'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%23fff'%3E%C2%A5%3C/text%3E%3C/svg%3E">
+<link rel="canonical" href="https://r59538904-art.github.io/tax-scholarship-simulator/">
+<!-- SNSで共有されたときの表示（画像は用意していないので文字情報のみ） -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="住民税・所得税・国民健康保険・JASSO奨学金 判定シミュレーター">
+<meta property="og:title" content="住民税・所得税・国保軽減・JASSO奨学金 判定シミュレーター">
+<meta property="og:description" content="収入と控除を入力すると、所得税・住民税（均等割／所得割）の課税額、国民健康保険料の軽減割合、JASSO給付奨学金・授業料等減免の支援区分を判定します。入力内容は保存も送信もされません。">
+<meta property="og:url" content="https://r59538904-art.github.io/tax-scholarship-simulator/">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="住民税・所得税・国保軽減・JASSO奨学金 判定シミュレーター">
+<meta name="twitter:description" content="収入と控除を入力すると、所得税・住民税・国保の軽減・JASSOの支援区分が判定できます。入力内容は保存も送信もされません。">
 <link rel="stylesheet" href="assets/style.css">
 <!-- 配色は最初の描画より前に決める（ダーク設定の人に白い画面が一瞬出るのを防ぐ） -->
 <script src="assets/theme.js"></script>

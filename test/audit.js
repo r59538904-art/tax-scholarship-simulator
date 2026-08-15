@@ -546,8 +546,22 @@ section('D-2 危険なAPIを使っていないこと');
   ok('localStorage は必ず try で包む',
     (src['theme.js'].match(/try\s*\{/g) || []).length >= calls.length, '未保護の呼び出しあり');
 
-  ok('外部ホストへの script/link 参照がない',
-    !/(src|href)=["']https?:\/\//.test(html.replace(/<a [^>]*>/g, '')), '外部参照あり');
+  /* 外部ホストから「読み込む」ものがないことを見る。
+   * canonical と本文中のリンク（<a>）は通信を発生させないので対象外。
+   * 出典リンクを踏むかどうかは利用者の操作であり、ページ表示では取りに行かない。 */
+  const loadable = html
+    .replace(/<a [^>]*>/g, '')
+    .replace(/<link[^>]*rel=["']canonical["'][^>]*>/gi, '');
+  ok('外部ホストから読み込むものがない',
+    !/(src|href)=["']https?:\/\//.test(loadable), '外部参照あり');
+  ok('canonical が指定されている',
+    /<link[^>]*rel=["']canonical["'][^>]*href=["']https:\/\//i.test(html), '未指定');
+  ok('OGP と Twitter Card が指定されている',
+    /property=["']og:title["']/.test(html) && /name=["']twitter:card["']/.test(html), '未指定');
+  ok('ファビコンが埋め込みで404を出さない',
+    /<link[^>]*rel=["']icon["'][^>]*href=["']data:image/i.test(html), '外部ファビコン');
+  ok('CSP に frame-ancestors を入れていない（metaでは無視されるため）',
+    !/<meta[^>]*Content-Security-Policy[^>]*frame-ancestors/i.test(html), 'metaに指定あり');
   ok('HTMLにインライン script がない（CSPを厳しくしても動くように）',
     !/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/.test(html), 'インラインscript検出');
   ok('読み込んでいるスクリプトはすべて assets 配下の相対パス',

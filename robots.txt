@@ -1,0 +1,6 @@
+# 税金・奨学金の判定シミュレーター
+# 入力内容はサーバに送られないため、収集される個人情報はありません。
+User-agent: *
+Allow: /
+
+Sitemap: https://r59538904-art.github.io/tax-scholarship-simulator/sitemap.xml
