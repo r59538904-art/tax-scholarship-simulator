@@ -755,6 +755,128 @@ section('11b. 軽減判定所得のつくり方（住民税の所得との違い
 }
 
 /* ==========================================================================
+ * 13. 一時所得（所得税法34条）
+ * ======================================================================== */
+section('13. 一時所得：特別控除50万円のあと2分の1を算入');
+{
+  const t = (rev, exp) => Calc.calcIncomeTax(base({
+    income: { temporaryRevenue: rev, temporaryExpense: exp || 0 } })).income;
+  eq('収入40万・経費0（特別控除内）', t(400000).temporaryIncluded, 0);
+  eq('収入50万・経費0（ちょうど特別控除）', t(500000).temporaryIncluded, 0);
+  eq('収入100万・経費0 → (100万−50万)÷2', t(1000000).temporaryIncluded, 250000);
+  eq('収入200万・経費50万 → (200万−50万−50万)÷2', t(2000000, 500000).temporaryIncluded, 500000);
+  eq('控除前の一時所得も持っている', t(2000000, 500000).temporaryRaw, 1000000);
+  eq('経費が収入を上回っても0円', t(300000, 500000).temporaryIncluded, 0);
+  eq('端数は切捨て（101万円）', t(1010000).temporaryIncluded, 255000);
+  eq('合計所得金額に2分の1後で入る', t(1000000).gokei, 250000);
+}
+
+/* ==========================================================================
+ * 14. 総合課税の譲渡所得（所得税法33条）
+ * ======================================================================== */
+section('14. 総合譲渡：特別控除50万円は短期から先に、長期は2分の1');
+{
+  const g = (sr, se, lr, le) => Calc.calcIncomeTax(base({
+    income: { transferShortRevenue: sr || 0, transferShortExpense: se || 0,
+      transferLongRevenue: lr || 0, transferLongExpense: le || 0 } })).income;
+  eq('短期100万のみ → 50万（特別控除50万）', g(1000000).transferIncluded, 500000);
+  eq('長期100万のみ → (100万−50万)÷2', g(0, 0, 1000000).transferIncluded, 250000);
+  eq('短期100万＋長期200万：特別控除は短期から', g(1000000, 0, 2000000).transferShort, 500000);
+  eq('　このとき長期は控除を使えない', g(1000000, 0, 2000000).transferLong, 2000000);
+  eq('　算入額 ＝ 短期50万 ＋ 長期200万÷2', g(1000000, 0, 2000000).transferIncluded, 1500000);
+  eq('短期30万＋長期100万：残り20万を長期から', g(300000, 0, 1000000).transferLong, 800000);
+  eq('　算入額 ＝ 0 ＋ 80万÷2', g(300000, 0, 1000000).transferIncluded, 400000);
+  eq('経費が収入を上回っても0円', g(300000, 500000).transferIncluded, 0);
+}
+
+/* ==========================================================================
+ * 15. 利子所得・配当所得（総合課税）と配当控除
+ * ======================================================================== */
+section('15. 利子所得・配当所得（総合課税）と配当控除');
+{
+  eq('利子所得はそのまま総所得に入る',
+    Calc.calcIncomeTax(base({ income: { interest: 300000 } })).income.gokei, 300000);
+  eq('配当所得 ＝ 収入 − 負債利子',
+    Calc.calcIncomeTax(base({ income: { dividendGeneral: 1000000, dividendDebt: 200000 } }))
+      .income.dividendGeneral, 800000);
+  eq('負債利子が収入を上回っても0円',
+    Calc.calcIncomeTax(base({ income: { dividendGeneral: 100000, dividendDebt: 300000 } }))
+      .income.dividendGeneral, 0);
+
+  /* 配当控除：課税総所得金額等が1,000万円以下なら所得税10％・住民税2.8％ */
+  const d1 = base({ income: { salary: 5000000, dividendGeneral: 1000000 } });
+  const i1 = Calc.calcIncomeTax(d1), r1 = Calc.calcResidentTax(d1);
+  eq('課税総所得金額等が1,000万円以下', i1.taxableAll <= 10000000, true);
+  eq('配当控除（所得税10％）', i1.dividendCredit, 100000);
+  eq('配当控除（住民税2.8％）', r1.dividendCredit, 28000);
+  eq('　うち市町村民税分（1.6％）', r1.dividendCity, 16000);
+  eq('　うち道府県民税分（1.2％）', r1.dividendPref, 12000);
+
+  /* 1,000万円を超える部分に対応する配当は所得税5％・住民税1.4％ */
+  const d2 = base({ income: { salary: 20000000, dividendGeneral: 1000000 } });
+  const i2 = Calc.calcIncomeTax(d2);
+  eq('課税総所得金額等が1,000万円超', i2.taxableAll > 10000000, true);
+  eq('配当がすべて1,000万円超の部分なら5％', i2.dividendCredit, 50000);
+
+  /* ちょうどまたぐケース：1,000万円を超える部分だけ5％、残りは10％ */
+  const d3 = base({ income: { otherIncome: 10000000, dividendGeneral: 1000000 } });
+  const i3 = Calc.calcIncomeTax(d3);
+  const over = Math.max(0, i3.taxableAll - 10000000);
+  const atOver = Math.min(1000000, over);
+  eq('またぐ場合は按分して計算', i3.dividendCredit,
+    Math.floor((1000000 - atOver) * 0.10 + atOver * 0.05));
+  eq('配当がなければ配当控除は0円',
+    Calc.calcIncomeTax(base({ income: { salary: 5000000 } })).dividendCredit, 0);
+}
+
+/* ==========================================================================
+ * 16. 寄附金控除（所得税の所得控除・住民税の税額控除）
+ * ======================================================================== */
+section('16. 寄附金控除とふるさと納税');
+{
+  const mk = (f, o, sal) => base({ income: { salary: sal || 5000000 },
+    ded: { social: Math.floor((sal || 5000000) * 0.15), donationFurusato: f || 0, donationOther: o || 0 } });
+
+  /* 所得税は所得控除。（寄附金と総所得金額等の40％の小さいほう）− 2,000円 */
+  eq('寄附1万円 → 所得税の控除は8,000円',
+    dedOf(mk(10000), '寄附金控除'), 8000);
+  eq('寄附2,000円ちょうど → 0円', dedOf(mk(2000), '寄附金控除'), 0);
+  eq('寄附1,000円（2,000円未満）→ 0円', dedOf(mk(1000), '寄附金控除'), 0);
+  eq('ふるさと納税とその他は合算する', dedOf(mk(10000, 20000), '寄附金控除'), 28000);
+  /* 総所得金額等の40％が上限（給与500万 → 所得356万 → 上限142.4万） */
+  eq('40％の上限が効く', dedOf(mk(5000000), '寄附金控除'), Math.floor(3560000 * 0.4) - 2000);
+  eq('住民税は所得控除ではない（税額控除）', dedOf(mk(10000), '寄附金控除', 'resident'), 0);
+
+  /* 住民税は税額控除。基本控除10％＋ふるさと納税の特例控除 */
+  const r = Calc.calcResidentTax(mk(10000));
+  eq('基本控除（1万−2,000）×10％', r.donationBasic, 800);
+  eq('特例控除がある', r.donationSpecial > 0, true);
+  eq('特例控除の上限は所得割額の20％', r.donationSpecial <= r.donationSpecialCap, true);
+  const r0 = Calc.calcResidentTax(mk(0));
+  eq('寄附なしなら基本控除0円', r0.donationBasic, 0);
+  eq('寄附なしなら特例控除0円', r0.donationSpecial, 0);
+  eq('その他の寄附は特例控除の対象外',
+    Calc.calcResidentTax(mk(0, 30000)).donationSpecial, 0);
+  eq('　基本控除は対象になる',
+    Calc.calcResidentTax(mk(0, 30000)).donationBasic, Math.floor((30000 - 2000) * 0.1));
+
+  /* 上限内なら自己負担は2,000円に収まる（給与500万・単身の目安は約61,000円） */
+  const noDonation = mk(0);
+  const baseIt = Calc.calcIncomeTax(noDonation).total, baseRt = Calc.calcResidentTax(noDonation).total;
+  [10000, 30000, 60000].forEach(f => {
+    const it = Calc.calcIncomeTax(mk(f)).total, rt = Calc.calcResidentTax(mk(f)).total;
+    const saved = (baseIt - it) + (baseRt - rt);
+    eq(`ふるさと納税${f.toLocaleString()}円の自己負担が2,000円前後`,
+      Math.abs(f - saved - 2000) <= 200, true, `自己負担 ${(f - saved).toLocaleString()}円`);
+  });
+  /* 上限を大きく超えると自己負担が増える */
+  const big = 300000;
+  const itB = Calc.calcIncomeTax(mk(big)).total, rtB = Calc.calcResidentTax(mk(big)).total;
+  eq('上限を大きく超えると自己負担が2,000円で済まない',
+    big - ((baseIt - itB) + (baseRt - rtB)) > 2000, true);
+}
+
+/* ==========================================================================
  * 12. 全体の整合（不変条件）
  * ======================================================================== */
 section('12. 不変条件');

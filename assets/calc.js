@@ -122,7 +122,36 @@
     }
     var salaryFinal = Math.max(0, salary1 - adj2);
 
-    var sougou = salaryFinal + pension + pos(inc.business) + pos(inc.realEstate) + pos(inc.otherIncome);
+    /* --- 利子所得（総合課税）---
+     * 源泉分離課税で申告不要のものは入力しない。国外の預金利子など申告するものだけ。
+     * 特定公社債等の利子で申告分離を選んだものは「上場株式等に係る配当所得等」に入れる
+     * （そちらは上場株式等の譲渡損失と損益通算できるため、区別が必要）。 */
+    var interest = pos(inc.interest);
+
+    /* --- 配当所得（総合課税）＝ 収入金額 − 元本取得のための負債利子 --- */
+    var dividendGeneral = Math.max(0, pos(inc.dividendGeneral) - pos(inc.dividendDebt));
+
+    /* --- 一時所得 ---
+     * （収入 − 経費 − 特別控除50万円）の「2分の1」を総所得金額に算入する。
+     * 1/2を忘れると所得が2倍になるため、ここで確実に行う。 */
+    var temporaryRaw = Math.max(0,
+      pos(inc.temporaryRevenue) - pos(inc.temporaryExpense) - D.TEMPORARY.specialDeduction);
+    var temporaryIncluded = Math.floor(temporaryRaw / 2);
+
+    /* --- 総合課税の譲渡所得（車・ゴルフ会員権など）---
+     * 特別控除50万円は短期・長期あわせて50万円。短期から先に引く。
+     * 総所得金額への算入は、短期は全額・長期は2分の1。 */
+    var tShortRaw = Math.max(0, pos(inc.transferShortRevenue) - pos(inc.transferShortExpense));
+    var tLongRaw = Math.max(0, pos(inc.transferLongRevenue) - pos(inc.transferLongExpense));
+    var spLeft = D.TRANSFER_GENERAL.specialDeduction;
+    var uShort = Math.min(spLeft, tShortRaw); spLeft -= uShort;
+    var uLong = Math.min(spLeft, tLongRaw);
+    var transferShort = tShortRaw - uShort;
+    var transferLong = tLongRaw - uLong;
+    var transferIncluded = transferShort + Math.floor(transferLong / 2);
+
+    var sougou = salaryFinal + pension + pos(inc.business) + pos(inc.realEstate) + pos(inc.otherIncome)
+      + interest + dividendGeneral + temporaryIncluded + transferIncluded;
 
     /* --- 分離課税（繰越控除前） --- */
     var sepBefore = {};
@@ -167,6 +196,9 @@
       adjust1: adj1, adjust2: adj2, salaryIncome: salaryFinal,
       pensionRevenue: pos(inc.pension), pensionDeduction: penDed, pensionIncome: pension,
       business: pos(inc.business), realEstate: pos(inc.realEstate), other: pos(inc.otherIncome),
+      interest: interest, dividendGeneral: dividendGeneral,
+      temporaryRaw: temporaryRaw, temporaryIncluded: temporaryIncluded,
+      transferShort: transferShort, transferLong: transferLong, transferIncluded: transferIncluded,
       sougouBefore: sougou, sougou: sougouAfter,
       sepBefore: sepBefore, sep: sep, sepSumBefore: sepSumBefore, sepSum: sepSumAfter,
       forestBefore: forestBefore, forest: forestAfter,
@@ -240,6 +272,17 @@
 
     var med = pos(d.medical) - pos(d.medicalComp) - Math.min(inc.souShotokuTou * 0.05, 100000);
     push('医療費控除', Math.max(0, Math.min(med, 2000000)));
+
+    /* 寄附金控除は所得税だけが「所得控除」。
+     * 住民税は所得控除ではなく税額控除（基本控除＋ふるさと納税の特例控除）なので、
+     * ここでは所得税のときだけ足す。住民税分は calcResidentTax で扱う。 */
+    if (mode === 'income') {
+      var DN = D.DONATION;
+      var donation = pos(d.donationFurusato) + pos(d.donationOther);
+      var donationTarget = Math.min(donation, inc.souShotokuTou * DN.incomeLimitRate);
+      push('寄附金控除', Math.max(0, donationTarget - DN.minimum));
+    }
+
     push('雑損控除', pos(d.zasson));
     push('その他の所得控除', pos(d.otherDeduction));
 
@@ -401,15 +444,35 @@
       total += rb.tax;
     }
 
-    var base = Math.max(0, total - pos(input.taxCredit));
+    /* 配当控除（総合課税を選んだ配当がある場合の税額控除）。
+     * 課税総所得金額等（総合・山林・退職・分離のすべての課税所得の合計）が
+     * 1,000万円を超えるかどうかで率が変わる。超える部分に対応する配当から先に低い率を当てる。 */
+    var taxableAll = tSougou + tForest + tRet;
+    D.SEPARATE.forEach(function (s) { taxableAll += floorTo(al.sep[s.key], 1000); });
+    var divCredit = dividendCredit(inc.dividendGeneral, taxableAll, 'income');
+
+    var base = Math.max(0, total - divCredit - pos(input.taxCredit));
     var recon = Math.floor(base * D.RECONSTRUCTION_RATE);
 
     return {
       params: p, income: inc, deduction: ded, allocation: al,
       taxable: tSougou, rate: b.rate, subtraction: b.sub, parts: parts,
+      taxableAll: taxableAll, dividendCredit: divCredit,
       beforeCredit: total, baseTax: base, reconstruction: recon,
       total: floorTo(base + recon, 100), isTaxable: floorTo(base + recon, 100) > 0
     };
+  }
+
+  /* 配当控除の額（所得税法92条・地方税法37条の3）
+   * 課税総所得金額等のうち1,000万円を超える部分に対応する配当には低い率を使う。 */
+  function dividendCredit(dividend, taxableAll, mode) {
+    dividend = pos(dividend);
+    if (dividend <= 0) return 0;
+    var C = D.DIVIDEND_CREDIT, r = mode === 'resident' ? C.resident : C.income;
+    var over = Math.max(0, taxableAll - C.threshold);   // 1,000万円を超える部分
+    var atOver = Math.min(dividend, over);              // そのうち配当が占める分
+    var atUnder = dividend - atOver;
+    return Math.floor(atUnder * r.under + atOver * r.over);
   }
 
   /* ================================================================
@@ -482,6 +545,44 @@
     var cityAfter = Math.max(0, cityRaw - cityAdj);
     var prefAfter = Math.max(0, prefRaw - prefAdj);
 
+    /* --- 配当控除（住民税）--- */
+    var taxableAllR = tSougou + tForest + sepTaxable;
+    var divCreditR = dividendCredit(inc.dividendGeneral, taxableAllR, 'resident');
+    var DC = D.DIVIDEND_CREDIT;
+    var divCity = Math.floor(divCreditR * (taxableAllR > DC.threshold
+      ? DC.residentCityShare.over : DC.residentCityShare.under));
+    var divPref = divCreditR - divCity;
+    cityAfter = Math.max(0, cityAfter - divCity);
+    prefAfter = Math.max(0, prefAfter - divPref);
+
+    /* --- 寄附金税額控除（基本控除＋ふるさと納税の特例控除）---
+     * 基本控除 ：（寄附金と総所得金額等の30%の小さいほう − 2,000円）× 10%
+     * 特例控除 ：ふるさと納税だけが対象。
+     *            （ふるさと納税額 − 2,000円）×（90% − 所得税の限界税率 × 1.021）
+     *            所得割額（調整控除後）の20%が上限。
+     * 限界税率は「課税総所得金額 − 人的控除の差の合計」で判定する（地方税法附則5条の5）。
+     * その額が0以下のときは特例控除の税率差を0として扱う。 */
+    var DN = D.DONATION;
+    var furusato = pos(input.ded && input.ded.donationFurusato);
+    var donationAll = furusato + pos(input.ded && input.ded.donationOther);
+    var limitR = inc.souShotokuTou * DN.residentLimitRate;
+    var donationBasicTarget = Math.min(donationAll, limitR);
+    var donationBasic = Math.floor(Math.max(0, donationBasicTarget - DN.minimum) * DN.basicRate);
+
+    var marginalBase = tSougou - jinteki.total;
+    var marginal = marginalBase > 0 ? bracketTax(marginalBase).rate : 0;
+    var furusatoTarget = Math.min(furusato, limitR);
+    var donationSpecial = Math.floor(Math.max(0, furusatoTarget - DN.minimum) *
+      Math.max(0, DN.specialBase - marginal * DN.reconstruction));
+    var specialCap = Math.floor((cityAfter + prefAfter) * DN.specialCapRate);
+    donationSpecial = Math.min(donationSpecial, specialCap);
+
+    var donationCredit = donationBasic + donationSpecial;
+    var donCity = Math.min(cityAfter, Math.floor(donationCredit * DN.basicCityShare));
+    var donPref = Math.min(prefAfter, donationCredit - donCity);
+    cityAfter -= donCity;
+    prefAfter -= donPref;
+
     var credit = pos(input.residentCredit);
     var creditCity = Math.min(cityAfter, Math.floor(credit * cityShare));
     var creditPref = Math.min(prefAfter, credit - creditCity);
@@ -515,6 +616,10 @@
       cityStd: cityStd, prefStd: prefStd, citySep: citySep, prefSep: prefSep,
       cityRaw: cityRaw, prefRaw: prefRaw,
       adjBase: adjBase, cityAdj: cityAdj, prefAdj: prefAdj,
+      dividendCredit: divCreditR, dividendCity: divCity, dividendPref: divPref,
+      donationBasic: donationBasic, donationSpecial: donationSpecial,
+      donationCredit: donationCredit, donationSpecialCap: specialCap,
+      donationMarginalRate: marginal,
       creditCity: creditCity, creditPref: creditPref,
       chosei: chosei, cityChosei: cityChosei, prefChosei: prefChosei,
       cityShotoku: cityFinal, prefShotoku: prefFinal, shotokuTotal: cityFinal + prefFinal,

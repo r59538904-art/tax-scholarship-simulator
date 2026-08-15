@@ -91,8 +91,35 @@
       fld(p + '_pension', '公的年金等の収入（円）', '国民年金・厚生年金・企業年金など') +
       fld(p + '_business', '事業所得の金額（円）', '収入金額 − 必要経費（青色申告特別控除後）') +
       fld(p + '_realEstate', '不動産所得の金額（円）', '') +
-      fld(p + '_otherIncome', 'その他の所得の金額（円）', '雑所得（業務・その他）、総合課税の配当・譲渡、一時所得の2分の1後の額など') +
+      fld(p + '_otherIncome', 'その他の所得の金額（円）', '雑所得（業務・その他）など。下に専用欄がある所得はそちらへ') +
+      fld(p + '_interest', '利子所得（円）', '国外の預金利子など、確定申告するものだけ。国内の預貯金は源泉分離課税で申告不要です') +
     '</div>' +
+
+    '<div class="subblock"><h3>配当所得（総合課税を選ぶ場合）</h3>' +
+    '<p class="hint">総合課税を選ぶと<b>配当控除</b>（税額控除）が受けられます。' +
+    '申告分離課税を選ぶ配当は、下の④「上場株式等に係る配当所得等」に入れてください（両方には入れないでください）。</p>' +
+    '<div class="grid">' +
+      fld(p + '_dividendGeneral', '配当等の収入金額（円）', '株式の配当など') +
+      fld(p + '_dividendDebt', '元本取得のための負債利子（円）', 'なければ0のまま') +
+    '</div></div>' +
+
+    '<div class="subblock"><h3>一時所得（満期保険金・懸賞金など）</h3>' +
+    '<p class="hint"><b>収入と経費をそのまま入れてください。</b>特別控除50万円を引き、' +
+    'さらに<b>2分の1</b>にして所得に算入する計算は自動で行います。</p>' +
+    '<div class="grid">' +
+      fld(p + '_temporaryRevenue', '一時所得の収入金額（円）', '満期保険金、解約返戻金、懸賞金、競馬の払戻金など') +
+      fld(p + '_temporaryExpense', '収入を得るために支出した金額（円）', '払い込んだ保険料など') +
+    '</div></div>' +
+
+    '<div class="subblock"><h3>総合課税の譲渡所得（車・ゴルフ会員権・金地金など）</h3>' +
+    '<p class="hint">土地建物・株式は<b>ここではなく</b>④の分離課税へ。' +
+    '特別控除50万円（短期・長期あわせて）と、<b>長期の2分の1</b>は自動で計算します。</p>' +
+    '<div class="grid">' +
+      fld(p + '_transferShortRevenue', '短期（所有5年以下）の収入金額（円）', '') +
+      fld(p + '_transferShortExpense', '短期の取得費・譲渡費用（円）', '') +
+      fld(p + '_transferLongRevenue', '長期（所有5年超）の収入金額（円）', '') +
+      fld(p + '_transferLongExpense', '長期の取得費・譲渡費用（円）', '') +
+    '</div></div>' +
     '<p class="derived" id="' + p + '_incomeNote"></p></fieldset>' +
 
     '<fieldset class="group"><legend>② 所得控除</legend><div class="grid">' +
@@ -103,6 +130,18 @@
       fld(p + '_zasson', '雑損控除の額（円）', '本年分の災害・盗難等。金額を直接入力してください。') +
       fld(p + '_otherDeduction', 'その他の所得控除（円）', '上記以外で所得税・住民税に共通して適用される控除') +
     '</div>' +
+
+    '<div class="subblock"><h3>寄附金控除（ふるさと納税を含む）</h3>' +
+    '<p class="hint">' +
+    '<b>ふるさと納税</b>は所得税の所得控除に加えて、住民税で<b>基本控除（10％）＋特例控除</b>が受けられます。' +
+    '特例控除は所得割額の20％が上限で、これを超えると自己負担が2,000円で収まりません。' +
+    'ワンストップ特例を使った場合も、控除の合計額はほぼ同じになります。' +
+    '</p>' +
+    '<div class="grid">' +
+      fld(p + '_donationFurusato', 'ふるさと納税の合計額（円）', '都道府県・市区町村への寄附。特例控除の対象です') +
+      fld(p + '_donationOther', 'その他の寄附金（円）', '国・認定NPO法人・公益社団法人などへの寄附。' +
+        '所得税の所得控除と住民税の基本控除の対象（住民税は自治体の条例で指定された団体のみ）') +
+    '</div></div>' +
     // 見出しは h2（STEPカード）→ h3 の順にする（レベルを飛ばさない）
     '<div class="subblock"><h3>生命保険料控除・地震保険料控除（支払保険料を入れると控除額を計算します）</h3>' +
     '<p class="hint">保険会社から届く「控除証明書」の金額を入れてください。該当がなければ空欄のままで大丈夫です。</p>' +
@@ -857,7 +896,13 @@
         salary: num(p + '_salary'), pension: num(p + '_pension'),
         pensionAge65: personMeta(p).age >= 65,
         business: num(p + '_business'), realEstate: num(p + '_realEstate'),
-        otherIncome: num(p + '_otherIncome'),
+        otherIncome: num(p + '_otherIncome'), interest: num(p + '_interest'),
+        dividendGeneral: num(p + '_dividendGeneral'), dividendDebt: num(p + '_dividendDebt'),
+        temporaryRevenue: num(p + '_temporaryRevenue'), temporaryExpense: num(p + '_temporaryExpense'),
+        transferShortRevenue: num(p + '_transferShortRevenue'),
+        transferShortExpense: num(p + '_transferShortExpense'),
+        transferLongRevenue: num(p + '_transferLongRevenue'),
+        transferLongExpense: num(p + '_transferLongExpense'),
         stockTransfer: num(p + '_stockTransfer'), stockDividend: num(p + '_stockDividend'),
         futures: num(p + '_futures'), landLong: num(p + '_landLong'), landShort: num(p + '_landShort'),
         retirementRevenue: num(p + '_retirementRevenue'), retirementYears: num(p + '_retirementYears'),
@@ -873,7 +918,8 @@
         lifeNewPension: num(p + '_lifeNewPension'), lifeOldPension: num(p + '_lifeOldPension'),
         quake: num(p + '_quake'), longOld: num(p + '_longOld'),
         medical: num(p + '_medical'), medicalComp: num(p + '_medicalComp'),
-        zasson: num(p + '_zasson'), otherDeduction: num(p + '_otherDeduction')
+        zasson: num(p + '_zasson'), otherDeduction: num(p + '_otherDeduction'),
+        donationFurusato: num(p + '_donationFurusato'), donationOther: num(p + '_donationOther')
       },
       family: null,
       flags: { minor: chk(p + '_minor'), welfare: chk(p + '_welfare') },
