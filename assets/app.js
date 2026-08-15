@@ -1299,19 +1299,23 @@
      * 学生本人モードで使っている人には自分の税額に見えてしまっていた。 */
     var h = '<div class="card"><h2>判定結果の要約</h2>' +
       '<h3>人ごとの税額</h3>' +
-      '<div class="tablewrap"><table class="compare"><thead><tr>' +
-      '<th>だれの分か</th><th class="num">所得税</th><th class="num">住民税 合計</th>' +
-      '<th class="num">うち均等割</th><th class="num">うち所得割</th>' +
-      (showJasso ? '<th class="num">JASSO 支給額算定基準額</th>' : '') + '</tr></thead><tbody>';
+      '<div class="tablewrap"><table class="compare persons"><thead><tr>' +
+      '<th>だれの分か</th><th class="num">所得税</th><th class="num">住民税<br>合計</th>' +
+      '<th class="num">うち<br>均等割</th><th class="num">うち<br>所得割</th>' +
+      (showJasso ? '<th class="num">JASSO<br>支給額算定基準額</th>' : '') + '</tr></thead><tbody>';
+    /* 金額と「非課税」が混ざると読みにくいので、非課税は緑のバッジで見分けられるようにする */
+    var cell = function (exempt, amount, label) {
+      return exempt ? '<span class="badge ok">' + (label || '非課税') + '</span>' : yen(amount);
+    };
     people.forEach(function (x) {
       var it = x.res.incomeTax, rt = x.res.resident;
       var both = rt.kintouExempt && rt.shotokuExempt;
       h += '<tr' + (x.key === (studentMember ? 'm' + studentMember.id : '') ? ' class="hl"' : '') + '>' +
-        '<th>' + esc(x.title) + '<br><span class="muted">' + esc(x.sub) + '</span></th>' +
-        '<td class="num">' + (it.isTaxable ? yen(it.total) : '課税なし') + '</td>' +
-        '<td class="num"><b>' + (both ? '非課税' : yen(rt.total)) + '</b></td>' +
-        '<td class="num">' + (rt.kintouExempt ? '非課税' : yen(rt.kintouTotal)) + '</td>' +
-        '<td class="num">' + (rt.shotokuExempt ? '非課税' : yen(rt.shotokuTotal)) + '</td>' +
+        '<th class="who"><b>' + esc(x.title) + '</b><span class="role">' + esc(x.sub) + '</span></th>' +
+        '<td class="num">' + cell(!it.isTaxable, it.total, '課税なし') + '</td>' +
+        '<td class="num total">' + (both ? '<span class="badge ok">非課税</span>' : '<b>' + yen(rt.total) + '</b>') + '</td>' +
+        '<td class="num">' + cell(rt.kintouExempt, rt.kintouTotal) + '</td>' +
+        '<td class="num">' + cell(rt.shotokuExempt, rt.shotokuTotal) + '</td>' +
         (showJasso ? '<td class="num">' + (x.jasso ? yen(x.jasso.kijun) : '—') + '</td>' : '') +
         '</tr>';
     });

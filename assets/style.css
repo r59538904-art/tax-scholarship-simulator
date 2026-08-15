@@ -362,6 +362,26 @@ table.compare th.c1 { background: var(--kin-soft) !important; color: var(--kin) 
 table.compare th.c2 { background: var(--sho-soft) !important; color: var(--sho) !important; }
 table.compare td.good { background: var(--good-soft); }
 table.compare td.bad { background: var(--bad-soft); }
+/* 金額は右揃え・等幅数字にして桁を揃える。
+   table.detail にはあったが table.compare になく、要約表の金額が左揃えで
+   桁の比較ができなかった。 */
+table.compare td.num, table.compare th.num {
+  text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* 人ごとの税額表：名前が折り返して行が縦に伸びるのを防ぎ、
+   役割（生計維持者A／学生本人）は名前の下に小さく添える。 */
+table.compare.persons { min-width: 640px; }
+table.compare.persons tbody th.who { width: 26%; line-height: 1.5; }
+table.compare.persons th.who b { display: block; font-size: .95em; }
+table.compare.persons th.who .role {
+  display: block; font-size: .78em; font-weight: 400; color: var(--ink-3); margin-top: 1px;
+}
+table.compare.persons thead th { line-height: 1.4; vertical-align: bottom; }
+table.compare.persons td { vertical-align: middle; }
+/* 住民税の合計は一番見たい数字なので少し大きく */
+table.compare.persons td.total { font-size: 1.06em; }
+table.compare.persons td.total b { color: var(--brand-strong); }
+
 table.compare tr.hl { outline: 2px solid var(--brand); outline-offset: -2px; }
 table.compare tr.hl td, table.compare tr.hl th { background: var(--brand-soft); }
 table.compare .plus { color: var(--bad); font-weight: 700; }
