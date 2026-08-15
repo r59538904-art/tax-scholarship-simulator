@@ -1,0 +1,61 @@
+# GitHub Pages へのデプロイ
+#
+# main に入った内容を、全検証が通ったときだけ公開します。
+# 税額の計算結果を出すサイトなので、検証が落ちているものは公開しません。
+name: サイトを公開
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は1つずつ。走行中に新しい push が来たら、そちらを待たせる
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 計算の検証（これが落ちたら公開しない）
+        run: |
+          node test/verify.js
+          node test/verify-calc.js
+          node test/verify-matrix.js
+          node test/audit.js
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 公開するファイルだけを集める
+        run: |
+          mkdir -p _site/assets _site/docs
+          cp index.html _site/
+          cp assets/*.js assets/*.css _site/assets/
+          cp docs/*.md _site/docs/
+          cp README.md tax-parameters.json _site/
+          # 検証スクリプトは公開物に含めない（サイトの動作には不要）
+          ls -R _site | head -30
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
