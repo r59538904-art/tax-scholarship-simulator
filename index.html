@@ -143,7 +143,7 @@
       国民健康保険料とJASSOの支援区分も同じずれ方をします。
     </p>
   </div>
-  <div class="grid">
+  <div class="grid rows">
     <label class="field">
       <span>対象とする所得の年分</span>
       <select id="year">
@@ -177,7 +177,7 @@
 
   <details class="sub">
     <summary>税率・均等割額を手動で調整する（自動で入るので、ふつうは開かなくて大丈夫です）</summary>
-    <div class="grid">
+    <div class="grid rows">
       <label class="field"><span>市町村民税 均等割（円）</span>
         <input type="text" class="money" inputmode="numeric" autocomplete="off" id="cityKin"></label>
       <label class="field"><span>道府県民税 均等割（円）</span>
@@ -287,7 +287,7 @@
       —「原則として被用者保険等の適用者以外の国民すべてを被保険者とし」
     </p>
   </div>
-  <div class="grid">
+  <div class="grid rows">
     <label class="field">
       <span>世帯主はだれですか</span>
       <select id="k_head"></select>
@@ -310,7 +310,7 @@
       国保の軽減判定に使う所得は、住民税の所得と少しだけ扱いが違います。次に当てはまる場合だけ入力してください。
       該当がなければ0円のままで大丈夫です。
     </p>
-    <div class="grid">
+    <div class="grid rows">
       <label class="field"><span>分離譲渡所得の特別控除額の合計（円）</span>
         <input type="text" class="money" inputmode="numeric" autocomplete="off" id="k_landSpecial" value="0">
         <small class="hint">土地建物等の譲渡で3,000万円特別控除などを使った場合、<b>軽減判定では特別控除前</b>の額で見るため、控除額を足し戻します。</small></label>
@@ -327,7 +327,7 @@
       いちばん下のチェックを入れてください。<b>チェックを入れている間は STEP 3 の加入チェックは使われません</b>
       （まぎらわしいので、そちらは操作できないようにします）。
     </p>
-    <div class="grid">
+    <div class="grid rows">
       <label class="field"><span>国保の被保険者数（世帯内）</span><input type="number" id="k_insured" min="0" value="1">
         <small class="lockmsg" id="k_insured_lock"></small></label>
       <label class="field"><span>給与所得者等の数（世帯内）</span><input type="number" id="k_salary" min="0" value="1">
@@ -349,7 +349,7 @@
   <p class="hint">
     収入基準<strong>以外</strong>の要件（学力・在学・国籍／在留資格・資産基準など）はすべて満たしている前提で判定します。
   </p>
-  <div class="grid">
+  <div class="grid rows">
     <label class="field">
       <span>確認したい支援区分</span>
       <select id="j_target">

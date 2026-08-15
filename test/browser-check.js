@@ -855,6 +855,10 @@ const check = (label, cond, detail) => {
 
     const cols = await ev(`return getComputedStyle(document.querySelector('#step4 .grid')).gridTemplateColumns.split(' ').length;`);
     check('入力欄は1列に折り返している', cols === 1, cols + '列');
+    // 狭い画面ではラベルの下に入力欄を積む（横並びだと入力欄が細くなりすぎる）
+    const stacked = await ev(`const f=document.querySelector('#step4 .grid.rows > .field');
+      return getComputedStyle(f).display;`);
+    check('スマホではラベルと入力欄を縦に積む', stacked === 'flex', stacked);
 
     const nav = await ev(`return getComputedStyle(document.querySelector('.stepnav')).position;`);
     check('ステップナビが上に固定されている', nav === 'sticky', nav);

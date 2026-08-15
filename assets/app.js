@@ -86,7 +86,7 @@
   /* ---------- 収入・控除フォーム（A / B 共通） ---------- */
   function personForm(p) {
     return '' +
-    '<fieldset class="group"><legend>① 総合課税の収入・所得</legend><div class="grid">' +
+    '<fieldset class="group"><legend>① 総合課税の収入・所得</legend><div class="grid rows">' +
       fld(p + '_salary', '給与収入（円）', '源泉徴収票の「支払金額」。複数ある場合は合計。') +
       fld(p + '_pension', '公的年金等の収入（円）', '国民年金・厚生年金・企業年金など') +
       fld(p + '_business', '事業所得の金額（円）', '収入金額 − 必要経費（青色申告特別控除後）') +
@@ -98,7 +98,7 @@
     '<div class="subblock"><h3>配当所得（総合課税を選ぶ場合）</h3>' +
     '<p class="hint">総合課税を選ぶと<b>配当控除</b>（税額控除）が受けられます。' +
     '申告分離課税を選ぶ配当は、下の④「上場株式等に係る配当所得等」に入れてください（両方には入れないでください）。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_dividendGeneral', '配当等の収入金額（円）', '株式の配当など') +
       fld(p + '_dividendDebt', '元本取得のための負債利子（円）', 'なければ0のまま') +
     '</div></div>' +
@@ -106,7 +106,7 @@
     '<div class="subblock"><h3>一時所得（満期保険金・懸賞金など）</h3>' +
     '<p class="hint"><b>収入と経費をそのまま入れてください。</b>特別控除50万円を引き、' +
     'さらに<b>2分の1</b>にして所得に算入する計算は自動で行います。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_temporaryRevenue', '一時所得の収入金額（円）', '満期保険金、解約返戻金、懸賞金、競馬の払戻金など') +
       fld(p + '_temporaryExpense', '収入を得るために支出した金額（円）', '払い込んだ保険料など') +
     '</div></div>' +
@@ -114,7 +114,7 @@
     '<div class="subblock"><h3>総合課税の譲渡所得（車・ゴルフ会員権・金地金など）</h3>' +
     '<p class="hint">土地建物・株式は<b>ここではなく</b>④の分離課税へ。' +
     '特別控除50万円（短期・長期あわせて）と、<b>長期の2分の1</b>は自動で計算します。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_transferShortRevenue', '短期（所有5年以下）の収入金額（円）', '') +
       fld(p + '_transferShortExpense', '短期の取得費・譲渡費用（円）', '') +
       fld(p + '_transferLongRevenue', '長期（所有5年超）の収入金額（円）', '') +
@@ -122,7 +122,7 @@
     '</div></div>' +
     '<p class="derived" id="' + p + '_incomeNote"></p></fieldset>' +
 
-    '<fieldset class="group"><legend>② 所得控除</legend><div class="grid">' +
+    '<fieldset class="group"><legend>② 所得控除</legend><div class="grid rows">' +
       fld(p + '_social', '社会保険料控除（円）', '国民健康保険料・国民年金・厚生年金・健康保険・介護保険等の支払額') +
       fld(p + '_kyosai', '小規模企業共済等掛金控除（円）', 'iDeCo（個人型確定拠出年金）、小規模企業共済など') +
       fld(p + '_medical', '医療費の支払額（円）', '') +
@@ -137,7 +137,7 @@
     '特例控除は所得割額の20％が上限で、これを超えると自己負担が2,000円で収まりません。' +
     'ワンストップ特例を使った場合も、控除の合計額はほぼ同じになります。' +
     '</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_donationFurusato', 'ふるさと納税の合計額（円）', '都道府県・市区町村への寄附。特例控除の対象です') +
       fld(p + '_donationOther', 'その他の寄附金（円）', '国・認定NPO法人・公益社団法人などへの寄附。' +
         '所得税の所得控除と住民税の基本控除の対象（住民税は自治体の条例で指定された団体のみ）') +
@@ -145,7 +145,7 @@
     // 見出しは h2（STEPカード）→ h3 の順にする（レベルを飛ばさない）
     '<div class="subblock"><h3>生命保険料控除・地震保険料控除（支払保険料を入れると控除額を計算します）</h3>' +
     '<p class="hint">保険会社から届く「控除証明書」の金額を入れてください。該当がなければ空欄のままで大丈夫です。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_lifeNewGeneral', '一般の生命保険料・新契約（円）', '平成24年1月1日以後に契約') +
       fld(p + '_lifeOldGeneral', '一般の生命保険料・旧契約（円）', '平成23年12月31日以前に契約') +
       fld(p + '_lifeNewCare', '介護医療保険料（円）', '新契約のみ') +
@@ -156,7 +156,7 @@
     '</div></div></fieldset>' +
 
     '<fieldset class="group"><legend>③ 本人の状況（所得の条件を満たさないものは自動でロックされます）</legend>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       cb(p + '_student', '勤労学生控除を受ける', '働きながら学校に通っている場合') +
       cb(p + '_widow', '寡婦控除を受ける', '夫と死別・離別して再婚していない女性') +
       sel(p + '_singleParent', 'ひとり親控除（この人が母か父かを選ぶ）',
@@ -170,7 +170,7 @@
     '<fieldset class="group"><legend>④ 分離課税の所得（株式の譲渡・配当、不動産の譲渡、先物、退職金、山林）</legend>' +
     '<p class="hint">確定申告で申告分離課税を選んだ所得を入力してください。源泉徴収ありの特定口座で<b>申告しない</b>ものは入力不要です。' +
     '該当がなければ空欄のままで大丈夫です。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_stockTransfer', '株式等に係る譲渡所得等（円）', '同一年内の損益通算後・繰越控除前の金額') +
       fld(p + '_stockDividend', '上場株式等に係る配当所得等（円）', '申告分離課税を選択した配当・分配金') +
       fld(p + '_futures', '先物取引に係る雑所得等（円）', '先物・FX・CFDなど') +
@@ -180,7 +180,7 @@
       cnt(p + '_retirementYears', '勤続年数（年）', '1年未満の端数は切り上げ') +
       fld(p + '_forestRevenue', '山林所得の収入金額（円）', '') +
       fld(p + '_forestExpense', '山林所得の必要経費（円）', '特別控除50万円は自動で差し引きます') +
-    '</div><div class="grid">' +
+    '</div><div class="grid rows">' +
       cb(p + '_retirementOfficer', '役員等で勤続5年以下（特定役員退職手当等）') +
       cb(p + '_retirementShort', '一般社員で勤続5年以下（短期退職手当等）') +
       cb(p + '_retirementDisability', '障害者となったことによる退職（控除額に100万円加算）') +
@@ -190,7 +190,7 @@
     '<fieldset class="group"><legend>⑤ 前年から繰り越した損失（繰越控除）</legend>' +
     '<p class="hint">繰越控除は<b>所得割</b>には効きますが、<b>均等割の非課税判定・扶養判定に使う「合計所得金額」は繰越控除前</b>で見ます。' +
     '該当がなければ空欄のままで大丈夫です。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_coStockLoss', '上場株式等に係る譲渡損失の繰越額（円）', '翌年以後3年間繰越可') +
       fld(p + '_coNetLoss', '純損失の繰越控除額（円）', '青色申告の事業所得等の損失。3年間繰越可') +
       fld(p + '_coCasualtyLoss', '雑損失の繰越控除額（円）', '災害・盗難等による損失。3年間繰越可') +
@@ -198,7 +198,7 @@
 
     '<fieldset class="group"><legend>⑥ 税額控除（住宅ローン控除など）</legend>' +
     '<p class="hint">所得ではなく<b>税額から直接引く</b>控除です。該当がなければ空欄のままで大丈夫です。</p>' +
-    '<div class="grid">' +
+    '<div class="grid rows">' +
       fld(p + '_taxCredit', '所得税の税額控除の額（円）', '住宅借入金等特別控除、配当控除など') +
       fld(p + '_residentCredit', '住民税の税額控除の額（円）', '調整控除を除く。ふるさと納税には未対応。') +
     '</div></fieldset>';

@@ -249,6 +249,38 @@ details.guide > *:last-child { padding-bottom: 16px; }
 /* ---------- フォーム ---------- */
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px 18px; }
 .grid.two { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+
+/* ---------- 入力欄は「1項目1行」 ----------
+ * 3列に並べると、ラベル・入力欄・説明の高さが揃わず項目の切れ目が分からない。
+ * 対になる欄（短期の収入と経費など）が列またぎで分断されるのも読みにくい。
+ * そこで1行につき1項目とし、ラベルと入力欄を横に、説明をその下に置く。
+ * 狭い画面では従来どおりラベルの下に入力欄を積む。
+ */
+@media (min-width: 641px) {
+  .grid.rows { grid-template-columns: 1fr; gap: 0; }
+  .grid.rows > .field {
+    display: grid;
+    grid-template-columns: minmax(220px, 22rem) minmax(140px, 15rem);
+    grid-template-areas: "label input" "hint hint";
+    align-items: center;
+    gap: 3px 20px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .grid.rows > .field:last-child { border-bottom: 0; }
+  .grid.rows > .field > .lbl,
+  .grid.rows > .field > span:first-child { grid-area: label; }
+  .grid.rows > .field > input,
+  .grid.rows > .field > select,
+  .grid.rows > .field > .readout { grid-area: input; }
+  .grid.rows > .field > .hint,
+  .grid.rows > .field > .lockmsg { grid-area: hint; max-width: 62rem; }
+  /* チェックボックスの行は左にチェック、右に文章のまま */
+  .grid.rows > .field.checkline {
+    display: flex; grid-template-columns: none; grid-template-areas: none;
+    align-items: flex-start;
+  }
+}
 .field { display: flex; flex-direction: column; gap: 5px; font-size: .87rem; min-width: 0; }
 .field > span { font-weight: 700; color: var(--ink-2); line-height: 1.5; }
 input[type="number"], input[type="text"], select {
