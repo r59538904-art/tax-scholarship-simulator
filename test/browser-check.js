@@ -1154,6 +1154,30 @@ const check = (label, cond, detail) => {
    * ステップナビと鮮度表示は JS が中身を入れるので、CSS 側で先に高さを取ってある。
    * その予約が実際の高さと合っているかを、画面幅ごとに突き合わせる。
    * 文言を増やして折り返しが増えると足りなくなるが、そのときはここが落ちる。 */
+  /* 文字どうしが重なっていないか。
+   * 1行1項目の並べ方は CSS グリッドで作っており、説明文が2つ以上ある欄
+   * （年分＝説明が2つ、控除＝説明＋ロック理由）で同じマスに入って重なったことがある。
+   * 目で見ないと気づけない類なので、隣り合う要素の位置を実際に測って確かめる。 */
+  console.log('\n=== 文字の重なり ===');
+  for (const w of [1350, 900, 700, 641, 640, 412]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: w < 800 });
+    await send('Page.navigate', { url: pageUrl });
+    await waitReady();
+    const bad = await ev(`const bad=[];
+      document.querySelectorAll('.field, .mgrid, .kpi').forEach(function (f) {
+        const kids=[...f.children].filter(e=>e.getBoundingClientRect().height>0);
+        for(let i=0;i<kids.length;i++) for(let j=i+1;j<kids.length;j++){
+          const a=kids[i].getBoundingClientRect(), b=kids[j].getBoundingClientRect();
+          const ov=Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top);
+          const oh=Math.min(a.right,b.right)-Math.max(a.left,b.left);
+          if(ov>2&&oh>2) bad.push(((f.querySelector('span')||{}).textContent||f.className).slice(0,20)+
+            '（'+kids[i].className+'／'+kids[j].className+'）');
+        }
+      });
+      return bad;`);
+    check(`${w}px：文字が重なっていない`, bad.length === 0, bad.slice(0, 3).join(' / '));
+  }
+
   console.log('\n=== 読み込み中のガタつき（予約した高さと実際の高さ） ===');
   for (const w of [1350, 768, 412, 360, 320]) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: w < 800 });

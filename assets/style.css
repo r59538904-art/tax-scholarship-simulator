@@ -261,10 +261,13 @@ details.guide > *:last-child { padding-bottom: 16px; }
  */
 @media (min-width: 641px) {
   .grid.rows { grid-template-columns: 1fr; gap: 0; }
+  /* 説明文は1つとは限らない（年分の欄は2つ、控除の欄は説明＋ロック理由）。
+     マスに名前を付けて割り当てると、2つ目以降が同じマスに入って文字が重なる。
+     そこでラベルと入力欄だけ1行目に固定し、説明文は「横いっぱい」とだけ指定して
+     2行目・3行目…へ自動で送る。いくつあっても重ならない。 */
   .grid.rows > .field {
     display: grid;
     grid-template-columns: minmax(220px, 22rem) minmax(140px, 15rem);
-    grid-template-areas: "label input" "hint hint";
     align-items: center;
     gap: 3px 20px;
     padding: 9px 0;
@@ -272,12 +275,12 @@ details.guide > *:last-child { padding-bottom: 16px; }
   }
   .grid.rows > .field:last-child { border-bottom: 0; }
   .grid.rows > .field > .lbl,
-  .grid.rows > .field > span:first-child { grid-area: label; }
+  .grid.rows > .field > span:first-child { grid-column: 1; grid-row: 1; }
   .grid.rows > .field > input,
   .grid.rows > .field > select,
-  .grid.rows > .field > .readout { grid-area: input; }
+  .grid.rows > .field > .readout { grid-column: 2; grid-row: 1; }
   .grid.rows > .field > .hint,
-  .grid.rows > .field > .lockmsg { grid-area: hint; max-width: 62rem; }
+  .grid.rows > .field > .lockmsg { grid-column: 1 / -1; max-width: 62rem; }
   /* チェックボックスの行は左にチェック、右に文章のまま */
   .grid.rows > .field.checkline {
     display: flex; grid-template-columns: none; grid-template-areas: none;

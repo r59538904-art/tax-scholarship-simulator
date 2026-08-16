@@ -1229,8 +1229,8 @@
     var fx = seirei ? 0.75 : 1;
     /* 収入基準は「学生等本人と生計維持者の支給額算定基準額の合計」で判定する。
      * 本人分が0円でも列として必ず出す（合計に何が入っているかを見せるため）。 */
-    var cols = [{ label: labelA() + '（生計維持者A）', j: jA }];
-    if (jB) cols.push({ label: labelB() + '（生計維持者B）', j: jB });
+    var cols = [{ label: labelA(), j: jA }];
+    if (jB) cols.push({ label: labelB(), j: jB });
     var stuLabel = studentMember ? memberTitle(studentMember) + '（学生本人）' : '学生本人';
     cols.push({ label: stuLabel, j: jS, missing: !jS && !!studentMember, none: !studentMember });
 
@@ -1409,7 +1409,8 @@
           'STEP 3 でその人の「この人の税金も詳しく計算する」をONにすると、本人分も計算されます。');
       }
     }
-    var who = esc(labelA()) + '（生計維持者A）';
+    /* labelA() は「お父さん（生計維持者A）」まで含んでいる。ここで足すと二重になる。 */
+    var who = esc(labelA());
     if (!rt.shotokuExempt && rt.income.souShotokuTou - rt.shotokuLimit <= NEAR)
       msgs.push(who + 'の所得割を非課税にするには、総所得金額等をあと <b>' + yen(rt.income.souShotokuTou - rt.shotokuLimit) + '</b> 減らす必要があります。' +
         salaryHint(rt.income, rt.shotokuLimit, rt.params));
