@@ -38,15 +38,21 @@ https://r59538904-art.github.io/tax-scholarship-simulator/ を計測した結果
 | Performance | 99 | 77 |
 | Accessibility | 100 | 100 |
 | Best Practices | 100 | 100 |
-| SEO | 92 | 92 |
+| SEO | 100 | 100 |
 | CLS（読み込み中のずれ） | 0 | 0 |
 | FCP（最初の表示） | 0.6秒 | 2.7秒 |
 
-満点にできていない項目と、その理由。
+robots.txt と sitemap.xml は、クローラーも Lighthouse も**ドメイン直下**しか読まないため、
+別リポジトリ [r59538904-art.github.io](https://github.com/r59538904-art/r59538904-art.github.io) から
+`https://r59538904-art.github.io/robots.txt` として配信している。
+そのうえで Lighthouse は robots.txt を**ページの中から fetch** して確かめるので、
+CSP に `connect-src 'self'`（通信先は自分自身のみ）を足してある。
+`default-src 'none'` はそのままなので、入力内容が外に出ないことは変わらない。
+
+Performance が満点でない項目と、その理由。
 
 | 項目 | 状況 |
 |---|---|
-| robots.txt（SEOの−8点） | **検索エンジンからは正しく読まれている**（[r59538904-art.github.io](https://github.com/r59538904-art/r59538904-art.github.io) にドメイン直下用を置いた）。Lighthouse だけが読めないのは、Lighthouse が robots.txt をページの中から fetch するため、このサイトの CSP（`default-src 'none'`）に止められるから。`connect-src 'self'` を足せば 100点になるが、このサイトは通信を一切しないので、点数のためだけに許可を増やすのはやめた |
 | DOM 2,179要素 | 収入・控除・家族構成をすべて画面に出したままにする方針のため。折りたたむと軽くなるが、探さないと見つからない入力欄ができる |
 | CSS/JSが未圧縮 | ビルド工程を持たない方針（配ったファイルがそのまま読める）。圧縮すると 19KB 減る |
 | キャッシュの有効期間 | GitHub Pages は HTTP ヘッダーを設定できない（10分固定） |

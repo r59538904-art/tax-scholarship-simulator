@@ -576,6 +576,13 @@ section('D-2 危険なAPIを使っていないこと');
     !!ldObj && ldObj.url === (html.match(/rel=["']canonical["'] href=["']([^"']+)/) || [])[1], '不一致');
   ok('ファビコンが埋め込みで404を出さない',
     /<link[^>]*rel=["']icon["'][^>]*href=["']data:image/i.test(html), '外部ファビコン');
+  /* 通信先の許可が自分自身より広がっていないこと。
+   * ここが 'self' 以外に広がると、入力された年収や家族構成を外に送れるようになる。 */
+  const csp = (html.match(/Content-Security-Policy[^>]*content="([^"]+)"/i) || [])[1] || '';
+  const connect = (csp.match(/connect-src ([^;]*)/) || [])[1] || '';
+  ok('CSP の通信先が自分自身だけに限られている',
+    connect.trim() === "'self'" && !/\*|https?:/.test(connect), 'connect-src: ' + connect);
+  ok('CSP の既定が none のまま', /default-src 'none'/.test(csp), csp.slice(0, 60));
   ok('CSP に frame-ancestors を入れていない（metaでは無視されるため）',
     !/<meta[^>]*Content-Security-Policy[^>]*frame-ancestors/i.test(html), 'metaに指定あり');
   /* 実行されるインラインJSがないこと。JSON-LD は type が JavaScript ではないので

@@ -7,13 +7,17 @@
 <meta name="description" content="収入と控除を入力すると、所得税・住民税（均等割／所得割）の課税額、国民健康保険料の軽減割合、JASSO給付奨学金・授業料等減免の支援区分を判定します。全国1,719市区町村の級地に対応。入力内容は保存も送信もされません。">
 <meta name="color-scheme" content="light dark">
 <meta name="referrer" content="no-referrer">
-<!-- 外部への通信を一切許可しない。万一スクリプトが混入しても外に出せないようにする。
+<!-- 外部への通信を一切許可しない。万一スクリプトが混入しても、入力された年収や
+     家族構成を外に出せないようにする。通信先は自分自身（'self'）だけで、
+     GitHub Pages は静的配信しか行わないので、送っても受け取る先がない。
      'unsafe-inline' を style-src に入れているのは、結果表示で要素の style 属性
      （ゲージの幅など）を組み立てているため。script は self のみ。
+     connect-src 'self' は、このサイト自身は一切通信しないので本来は不要だが、
+     Lighthouse が robots.txt をページの中から fetch して確認するため入れている。
      frame-ancestors は <meta> では無視される（HTTPヘッダー専用）ため入れていない。
      GitHub Pages はヘッダーを設定できないので、自前サーバに載せる際は
      Content-Security-Policy: frame-ancestors 'none' をヘッダーで付けること。 -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'none'; form-action 'none'">
 <!-- ファビコンは外部ファイルにせずSVGを直接埋め込む（404を出さず、追加の通信もしない） -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314568b'/%3E%3Ctext x='16' y='23' font-size='19' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='%23fff'%3E%C2%A5%3C/text%3E%3C/svg%3E">
 <link rel="canonical" href="https://r59538904-art.github.io/tax-scholarship-simulator/">
