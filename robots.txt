@@ -1,6 +1,11 @@
-# 税金・奨学金の判定シミュレーター
-# 入力内容はサーバに送られないため、収集される個人情報はありません。
+# 注意：このファイルは実際には読まれません。
+# クローラーも Lighthouse も、ドメイン直下の /robots.txt しか見ないためです。
+# 実際に使われているのは、別リポジトリ（r59538904-art.github.io）に置いた
+# https://r59538904-art.github.io/robots.txt のほうです。
+#
+# ここに残してあるのは、このサイトを独自ドメインの直下に置き直したときに、
+# そのまま使えるようにするためです。
 User-agent: *
 Allow: /
 
-Sitemap: https://r59538904-art.github.io/tax-scholarship-simulator/sitemap.xml
+Sitemap: https://r59538904-art.github.io/sitemap.xml

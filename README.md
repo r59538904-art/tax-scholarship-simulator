@@ -46,7 +46,7 @@ https://r59538904-art.github.io/tax-scholarship-simulator/ を計測した結果
 
 | 項目 | 状況 |
 |---|---|
-| robots.txt（SEOの−8点） | Lighthouse と検索エンジンは**ドメイン直下**の `/robots.txt` を見る。GitHub Pages のプロジェクトページは `/tax-scholarship-simulator/` 配下にしか置けないため、置いてはあるが読まれない。独自ドメインか `ユーザー名.github.io` リポジトリに移せば解決する |
+| robots.txt（SEOの−8点） | **検索エンジンからは正しく読まれている**（[r59538904-art.github.io](https://github.com/r59538904-art/r59538904-art.github.io) にドメイン直下用を置いた）。Lighthouse だけが読めないのは、Lighthouse が robots.txt をページの中から fetch するため、このサイトの CSP（`default-src 'none'`）に止められるから。`connect-src 'self'` を足せば 100点になるが、このサイトは通信を一切しないので、点数のためだけに許可を増やすのはやめた |
 | DOM 2,179要素 | 収入・控除・家族構成をすべて画面に出したままにする方針のため。折りたたむと軽くなるが、探さないと見つからない入力欄ができる |
 | CSS/JSが未圧縮 | ビルド工程を持たない方針（配ったファイルがそのまま読める）。圧縮すると 19KB 減る |
 | キャッシュの有効期間 | GitHub Pages は HTTP ヘッダーを設定できない（10分固定） |
