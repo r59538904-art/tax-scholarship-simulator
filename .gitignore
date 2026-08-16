@@ -3,3 +3,7 @@ test/.chrome-*/
 test/shots/
 node_modules/
 *.log
+
+# 測定結果の一時ファイル（Lighthouse など）
+*.report.json
+r[0-9][0-9][0-9][0-9]-*.json
