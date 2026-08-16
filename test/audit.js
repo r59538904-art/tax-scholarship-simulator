@@ -563,6 +563,14 @@ section('D-2 危険なAPIを使っていないこと');
   const ld = (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
   let ldObj = null;
   try { ldObj = JSON.parse(ld); } catch (e) { ldObj = null; }
+  /* 市区町村の数は「読み込み中に画面がずれない」ようHTMLに直書きしてある。
+   * 収録データを足し引きしたときに書き換え忘れると嘘の数字が残るので、ここで突き合わせる。 */
+  const cityTotal = Object.values(require('../assets/cities.js'))
+    .reduce((a, b) => a + b.length, 0).toLocaleString('ja-JP');
+  const written = [...html.matchAll(/id="cityCount2?"[^>]*>([^<]+)</g)].map(m => m[1]);
+  ok('HTMLに書いた市区町村の数が実データと一致する',
+    written.length === 2 && written.every(v => v === cityTotal),
+    'HTML ' + written.join('/') + ' ／ 実データ ' + cityTotal);
   ok('構造化データ（JSON-LD）がJSONとして正しい', !!ldObj, '解析できない');
   ok('構造化データのURLが canonical と一致する',
     !!ldObj && ldObj.url === (html.match(/rel=["']canonical["'] href=["']([^"']+)/) || [])[1], '不一致');

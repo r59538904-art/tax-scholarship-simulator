@@ -183,7 +183,10 @@ h1, h2, h3, h4 { line-height: 1.5; letter-spacing: .01em; }
   background: var(--surface); border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 30;
 }
-.stepnav .wrap { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+/* 中身は JS が作るので、空のまま表示 →あとから中身が入る、の順になる。
+   先に高さを取っておかないと、入った瞬間に下の全部が押し下げられる（画面のガタつき）。
+   この 52px / 48px は実測値で、test/browser-check.js が実際の高さと突き合わせている。 */
+.stepnav .wrap { display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; min-height: 52px; }
 .stepnav .wrap::-webkit-scrollbar { display: none; }
 /* 未選択のステップも読めるようにする（WCAG AA 4.5:1）。
    薄いグレーの丸に白文字だと1.3:1しかなく、番号が事実上見えなかった。 */
@@ -673,6 +676,7 @@ input:disabled, select:disabled { background: var(--surface-2); cursor: not-allo
   .sgrid { grid-template-columns: 1fr 1fr; }
   .steps { flex-direction: column; }
   .stepnav a { padding: 11px 11px; font-size: .8rem; }
+  .stepnav .wrap { min-height: 48px; }
 
   fieldset.group { padding: 12px 12px 14px; }
   fieldset.group > legend { font-size: .88rem; }
@@ -783,10 +787,17 @@ input:disabled, select:disabled { background: var(--surface-2); cursor: not-allo
   background: #0b2b48; color: #e8f1fa;
   padding: 9px 13px; border-radius: var(--r-sm); border-left: 3px solid rgba(255, 255, 255, .35);
 }
+/* ステップナビと同じ理由で、中身が入る前に高さを取っておく。
+   狭い画面ほど折り返して背が高くなるので、幅ごとに実測値を入れている。 */
+.site-header #freshness { min-height: 39px; }
+@media (max-width: 640px) { .site-header #freshness { min-height: 60px; } }
+@media (max-width: 380px) { .site-header #freshness { min-height: 81px; } }
 .site-header #freshness b { color: #ffffff; }
 /* 確認予定日を過ぎたときだけ色を変えて目立たせる */
 .site-header #freshness.warn {
   background: #5c3d00; color: #fff3d4; border-left-color: #ffd166; font-size: .84rem;
 }
 .site-header #freshness.warn b { color: #ffe9a8; }
-.site-header #freshness:empty { display: none; }
+/* 中身が入る前は、場所だけ取って何も見えない状態にする。
+   display:none にすると高さが 0 になり、結局あとで押し下げが起きる。 */
+.site-header #freshness:empty { background: none; border-left-color: transparent; }

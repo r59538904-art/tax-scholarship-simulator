@@ -1137,6 +1137,27 @@ const check = (label, cond, detail) => {
     await sleep(200);
   }
 
+  /* 読み込み中に画面がガタつかないか。
+   * ステップナビと鮮度表示は JS が中身を入れるので、CSS 側で先に高さを取ってある。
+   * その予約が実際の高さと合っているかを、画面幅ごとに突き合わせる。
+   * 文言を増やして折り返しが増えると足りなくなるが、そのときはここが落ちる。 */
+  console.log('\n=== 読み込み中のガタつき（予約した高さと実際の高さ） ===');
+  for (const w of [1350, 768, 412, 360, 320]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: w < 800 });
+    await send('Page.navigate', { url: pageUrl });
+    await sleep(1500);
+    const g = await ev(`const px=(el,p)=>Math.round(parseFloat(getComputedStyle(el)[p])||0);
+      const nav=document.querySelector('.stepnav .wrap'), fr=document.getElementById('freshness');
+      return { navRes:px(nav,'minHeight'), navAct:Math.round(nav.getBoundingClientRect().height),
+               frRes:px(fr,'minHeight'), frAct:Math.round(fr.getBoundingClientRect().height) };`);
+    check(`${w}px：ステップナビが押し下げを起こさない`, g.navAct <= g.navRes,
+      `予約 ${g.navRes}px / 実際 ${g.navAct}px`);
+    check(`${w}px：鮮度表示が押し下げを起こさない`, g.frAct <= g.frRes,
+      `予約 ${g.frRes}px / 実際 ${g.frAct}px`);
+  }
+  await send('Emulation.clearDeviceMetricsOverride');
+  await send('Page.navigate', { url: pageUrl }); await sleep(1200);
+
   console.log('\n=== 印刷（PDF出力） ===');
   await ev(`mode('student'); set('A_salary','5000000'); set('A_social','750000');
     document.getElementById('calcBtn').click(); return 1;`);
