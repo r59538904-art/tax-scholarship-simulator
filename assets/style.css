@@ -695,20 +695,71 @@ input:disabled, select:disabled { background: var(--surface-2); cursor: not-allo
   .field.inline > span { white-space: normal; }
   .field.inline select { width: 100%; }
 
-  /* 表は枠の中だけで横スクロールさせる */
+  /* ---- 狭い画面では、結果の表を縦に積み直す ----
+   *
+   * 「項目 × 人」の表を横に並べたままだと、1列あたり70pxほどしか取れず、
+   * 「51,300円 以上 154,500円 未満」が1文字ずつ折り返され、右端の列は
+   * 画面の外に出てしまう（横スクロールに気づかず読み落とす）。
+   *
+   * そこで1行を1つのカードにして、行の見出しを小見出し、
+   * 各マスを「列の見出し ─ 値」の1行として縦に積む。
+   * 列の見出しは JS が data-label として各マスに入れている（app.js の
+   * labelTableCells）。横スクロールは要らなくなる。 */
+  #results .tablewrap { overflow-x: visible; border: 0; border-radius: 0; }
+  #results table.compare, #results table.detail {
+    display: block; min-width: 0; width: 100%; font-size: .87rem; background: none;
+  }
+  #results table.compare > thead, #results table.detail > thead { display: none; }
+  #results table.compare > tbody, #results table.detail > tbody { display: block; }
+  #results table.compare > tbody > tr, #results table.detail > tbody > tr {
+    display: block; background: var(--surface);
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: 10px 12px; margin-bottom: 8px;
+  }
+  #results table.compare > tbody > tr:last-child,
+  #results table.detail > tbody > tr:last-child { margin-bottom: 0; }
+  /* 行の見出し（左端）はカードの小見出しに */
+  #results table.compare > tbody > tr > th,
+  #results table.detail > tbody > tr > th {
+    display: block; width: auto; padding: 0 0 7px; border: 0; background: none;
+    font-weight: 700; color: var(--ink); line-height: 1.6;
+  }
+  /* 各マスは「列の見出し ─ 値」の1行に。
+     値が短ければ右端に、判定文のように長ければ折り返して次の行に回る
+     （金額の欄では桁が右に揃い、説明が入る欄では文章が潰れない）。 */
+  #results table.compare > tbody > tr > td,
+  #results table.detail > tbody > tr > td {
+    display: flex; flex-wrap: wrap; align-items: baseline;
+    justify-content: space-between; gap: 2px 12px;
+    width: auto; padding: 6px 0; border: 0; border-top: 1px solid var(--line-soft);
+    text-align: left; white-space: normal;
+  }
+  #results table.compare > tbody > tr > td::before,
+  #results table.detail > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 1 auto; min-width: 0;
+    font-size: .84em; font-weight: 400; color: var(--ink-2);
+    word-break: auto-phrase;
+  }
+  /* 金額は等幅数字のまま（横に潰れないので nowrap は外す） */
+  #results table.compare > tbody > tr > td.num,
+  #results table.detail > tbody > tr > td.num { white-space: normal; }
+  /* 名札のないマス（見出しのない表）は、そのまま1行として出す */
+  #results table.compare > tbody > tr > td:not([data-label]),
+  #results table.detail > tbody > tr > td:not([data-label]) { display: block; text-align: left; }
+  /* 合計行はカードごと目立たせる */
+  #results table.detail > tbody > tr.sum { border-color: var(--brand); background: var(--brand-soft); }
+  #results table.compare > tbody > tr > td.good { background: none; color: var(--good); font-weight: 700; }
+  #results table.compare > tbody > tr > td.bad { background: none; color: var(--bad); font-weight: 700; }
+
+  /* 入力欄まわりの表（結果の外）は今までどおり枠内で横スクロール */
   table.compare { min-width: 520px; }
-  /* 短い比較表は横スクロールさせず、折り返して画面に収める
-     （スクロールに気づかず片方の列を見落とすのを防ぐ） */
   table.compare.narrow { min-width: 0; font-size: .8rem; }
   table.compare.narrow th, table.compare.narrow td { padding: 8px 7px; }
   table.compare.narrow tbody th { width: 27%; }
   table.detail { font-size: .82rem; }
   table.detail th, table.detail td { padding: 6px 8px; }
   .tablewrap { -webkit-overflow-scrolling: touch; }
-  /* 結果の明細表は列が多く、狭い画面では縮みきらない。
-     表そのものをスクロール枠にして、本文が横に流れないようにする。 */
-  table.detail { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table.detail > caption { display: block; }
   .formula { font-size: .87rem; line-height: 1.85; padding: 12px 13px; }
   .verdict { padding: 15px 15px; }
   .verdict .big { font-size: 1.3rem; }

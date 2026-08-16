@@ -1512,8 +1512,36 @@
       detailHtml +
       sourcesHtml();
 
+    labelTableCells($('results'));
+
     $('printBar').style.display = '';
     $('stepResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* 表のマス1つ1つに、それが何の欄なのかを持たせる。
+   *
+   * 結果の表は「項目 × 人」の形が多く、そのままだと狭い画面で列が潰れて
+   * 「51,300円 以上 154,500円 未満」が1文字ずつ折り返され、右端の列は
+   * 画面の外に出てしまう。そこで狭い画面では表を縦に積み直すのだが、
+   * 積むと列の見出しが失われるため、各マスに見出しを持たせておく。
+   * （CSSの ::before で attr(data-label) として表示する）
+   *
+   * 表を作っている場所は10か所以上あるので、作るときに1つずつ書くのではなく、
+   * 出来上がった表から見出しを写す。新しい表を足しても自動で効く。 */
+  function labelTableCells(root) {
+    root.querySelectorAll('table').forEach(function (table) {
+      var heads = [].map.call(table.querySelectorAll('thead th'), function (th) {
+        return th.textContent.trim();
+      });
+      if (!heads.length) return;
+      [].forEach.call(table.querySelectorAll('tbody tr'), function (tr) {
+        [].forEach.call(tr.children, function (cell, i) {
+          // 行の見出し（左端の th）は積んだときの小見出しになるので、名札は要らない
+          if (cell.tagName === 'TH') return;
+          if (heads[i]) cell.setAttribute('data-label', heads[i]);
+        });
+      });
+    });
   }
 
   /* ============================================================

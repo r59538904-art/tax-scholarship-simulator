@@ -1154,6 +1154,35 @@ const check = (label, cond, detail) => {
    * ステップナビと鮮度表示は JS が中身を入れるので、CSS 側で先に高さを取ってある。
    * その予約が実際の高さと合っているかを、画面幅ごとに突き合わせる。
    * 文言を増やして折り返しが増えると足りなくなるが、そのときはここが落ちる。 */
+  /* 狭い画面で、結果の表が横スクロールなしで読めるか。
+   * 「項目 × 人」の表を横に並べたままだと1列70pxほどになり、金額が1文字ずつ
+   * 折り返され、右端の列は画面の外に出る。縦に積み直す指定が効いているかを、
+   * 実際に判定結果を出してから測って確かめる。 */
+  console.log('\n=== スマホでの結果表示 ===');
+  for (const w of [430, 390, 360, 320]) {
+    await send('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: true });
+    await send('Page.navigate', { url: pageUrl });
+    await waitReady();
+    await ev(`set('A_salary','4500000'); set('A_social','650000');
+      set('B_salary','1200000'); set('B_social','80000');
+      document.getElementById('calcBtn').click(); return 1;`);
+    await sleep(900);
+    const r = await ev(`const over=[];
+      document.querySelectorAll('#results .tablewrap').forEach(function (t) {
+        if (t.scrollWidth > t.clientWidth + 1) over.push('表が ' + (t.scrollWidth - t.clientWidth) + 'px はみ出す');
+      });
+      // 名札（列の見出し）が全部のマスに入っているか
+      let missing = 0;
+      document.querySelectorAll('#results table thead').forEach(function (th) {
+        const tbl = th.closest('table');
+        tbl.querySelectorAll('tbody tr > td').forEach(function (td) { if (!td.hasAttribute('data-label')) missing++; });
+      });
+      return { over: over, missing: missing, body: document.body.scrollWidth - document.body.clientWidth };`);
+    check(`${w}px：結果の表が横にはみ出さない`, r.over.length === 0, r.over.slice(0, 2).join(' / '));
+    check(`${w}px：本文が横にずれない`, r.body <= 1, r.body + 'px');
+    check(`${w}px：表のマスに列の見出しが入っている`, r.missing === 0, r.missing + '個 欠けている');
+  }
+
   /* 文字どうしが重なっていないか。
    * 1行1項目の並べ方は CSS グリッドで作っており、説明文が2つ以上ある欄
    * （年分＝説明が2つ、控除＝説明＋ロック理由）で同じマスに入って重なったことがある。
