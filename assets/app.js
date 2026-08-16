@@ -84,8 +84,11 @@
     '</small>';
 
   /* ---------- 収入・控除フォーム（A / B 共通） ---------- */
-  function personForm(p) {
-    return '' +
+  /* ①〜⑥のまとまりごとに、別々の文字列で返す。
+   * 起動時はこれを1つずつ画面に入れていく（一度に入れると、並べ直しに
+   * 300ミリ秒近くかかって操作を受け付けなくなるため。init のコメント参照）。 */
+  function personFormGroups(p) {
+    return [
     '<fieldset class="group"><legend>① 総合課税の収入・所得</legend><div class="grid rows">' +
       fld(p + '_salary', '給与収入（円）', '源泉徴収票の「支払金額」。複数ある場合は合計。') +
       fld(p + '_pension', '公的年金等の収入（円）', '国民年金・厚生年金・企業年金など') +
@@ -120,7 +123,7 @@
       fld(p + '_transferLongRevenue', '長期（所有5年超）の収入金額（円）', '') +
       fld(p + '_transferLongExpense', '長期の取得費・譲渡費用（円）', '') +
     '</div></div>' +
-    '<p class="derived" id="' + p + '_incomeNote"></p></fieldset>' +
+    '<p class="derived" id="' + p + '_incomeNote"></p></fieldset>',
 
     '<fieldset class="group"><legend>② 所得控除</legend><div class="grid rows">' +
       fld(p + '_social', '社会保険料控除（円）', '国民健康保険料・国民年金・厚生年金・健康保険・介護保険等の支払額') +
@@ -153,7 +156,7 @@
       fld(p + '_lifeOldPension', '個人年金保険料・旧契約（円）', '') +
       fld(p + '_quake', '地震保険料（円）', '') +
       fld(p + '_longOld', '旧長期損害保険料（円）', '平成18年末までに契約した満期返戻金のあるもの') +
-    '</div></div></fieldset>' +
+    '</div></div></fieldset>',
 
     '<fieldset class="group"><legend>③ 本人の状況（所得の条件を満たさないものは自動でロックされます）</legend>' +
     '<div class="grid rows">' +
@@ -165,7 +168,7 @@
         '住民税の調整控除に使う人的控除の差が母5万円・父1万円と異なるため、どちらかを選んでください。') +
       cb(p + '_minor', '未成年者である', '合計所得135万円以下なら住民税は非課税') +
       cb(p + '_welfare', '生活保護法の生活扶助を受けている') +
-    '</div></fieldset>' +
+    '</div></fieldset>',
 
     '<fieldset class="group"><legend>④ 分離課税の所得（株式の譲渡・配当、不動産の譲渡、先物、退職金、山林）</legend>' +
     '<p class="hint">確定申告で申告分離課税を選んだ所得を入力してください。源泉徴収ありの特定口座で<b>申告しない</b>ものは入力不要です。' +
@@ -185,7 +188,7 @@
       cb(p + '_retirementShort', '一般社員で勤続5年以下（短期退職手当等）') +
       cb(p + '_retirementDisability', '障害者となったことによる退職（控除額に100万円加算）') +
     '</div>' +
-    '<p class="hint">退職所得の住民税は退職時に分離課税で徴収済みのため、<b>翌年度の住民税・非課税判定・奨学金判定には影響しません</b>。</p></fieldset>' +
+    '<p class="hint">退職所得の住民税は退職時に分離課税で徴収済みのため、<b>翌年度の住民税・非課税判定・奨学金判定には影響しません</b>。</p></fieldset>',
 
     '<fieldset class="group"><legend>⑤ 前年から繰り越した損失（繰越控除）</legend>' +
     '<p class="hint">繰越控除は<b>所得割</b>には効きますが、<b>均等割の非課税判定・扶養判定に使う「合計所得金額」は繰越控除前</b>で見ます。' +
@@ -194,15 +197,19 @@
       fld(p + '_coStockLoss', '上場株式等に係る譲渡損失の繰越額（円）', '翌年以後3年間繰越可') +
       fld(p + '_coNetLoss', '純損失の繰越控除額（円）', '青色申告の事業所得等の損失。3年間繰越可') +
       fld(p + '_coCasualtyLoss', '雑損失の繰越控除額（円）', '災害・盗難等による損失。3年間繰越可') +
-    '</div></fieldset>' +
+    '</div></fieldset>',
 
     '<fieldset class="group"><legend>⑥ 税額控除（住宅ローン控除など）</legend>' +
     '<p class="hint">所得ではなく<b>税額から直接引く</b>控除です。該当がなければ空欄のままで大丈夫です。</p>' +
     '<div class="grid rows">' +
       fld(p + '_taxCredit', '所得税の税額控除の額（円）', '住宅借入金等特別控除、配当控除など') +
       fld(p + '_residentCredit', '住民税の税額控除の額（円）', '調整控除を除く。ふるさと納税には未対応。') +
-    '</div></fieldset>';
+    '</div></fieldset>'
+    ];
   }
+
+  /* まとめて1つの文字列がほしいとき（世帯員の詳細欄など）はこちら */
+  function personForm(p) { return personFormGroups(p).join(''); }
 
   /* ============================================================
    * 2. STEP 3 世帯にいる人
@@ -1701,15 +1708,21 @@
     document.querySelectorAll('.step').forEach(function (s) { obs.observe(s); });
 
     /* ここから先が重い組み立て。上から順に、1区切りずつ進める。
+     * 1区切りを50ミリ秒より短くしたいので、入力欄は①〜⑥のまとまり単位で入れる
+     * （まとめて入れると1区切りが約300ミリ秒になり、その間操作できない）。
      * 順番には意味がある：入力欄 → 選択肢 → 世帯員 → 最初の計算。 */
-    stepByStep([
-      function () { $('formA').innerHTML = personForm('A'); },
-      function () { $('formB').innerHTML = personForm('B'); },
-      function () { fillPref(); fillCity(); },
-      // 初期の世帯構成：学生本人モードなので、学生1人を「詳しく計算する」状態で置く
-      function () { addMember('child', true); renderRoster(); buildStepNav(); },
-      function () { refreshAll(); document.body.dataset.ready = '1'; }
-    ]);
+    var chunks = [];
+    ['A', 'B'].forEach(function (p) {
+      personFormGroups(p).forEach(function (html) {
+        chunks.push(function () { $('form' + p).insertAdjacentHTML('beforeend', html); });
+      });
+    });
+    chunks.push(function () { fillPref(); fillCity(); });
+    // 初期の世帯構成：学生本人モードなので、学生1人を「詳しく計算する」状態で置く
+    chunks.push(function () { addMember('child', true); });
+    chunks.push(function () { buildStepNav(); });
+    chunks.push(function () { refreshAll(); document.body.dataset.ready = '1'; });
+    stepByStep(chunks);
   }
 
   document.addEventListener('DOMContentLoaded', init);
