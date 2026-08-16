@@ -1552,16 +1552,30 @@
           (y >= now ? '<b>年の途中なので見込みになります。</b>' : ''));
   }
 
+  /* 起動時の組み立てを、少しずつ区切って進める。
+   *
+   * STEP 4・5・6 の入力欄は、ここで 800 個ほどの要素を作っている。それを一度に
+   * 作ると、ブラウザがそれらを並べ直すのに約300ミリ秒かかり、その間ページは
+   * タップにも入力にも反応しない（実測。Lighthouse の Total Blocking Time が
+   * 295ms→72ms なので、体感できる差がある）。
+   * 区切って渡すと、合間にブラウザが描画と操作を挟めるようになる。
+   * 合計の時間は変わらないが、固まる時間がなくなる。
+   *
+   * setTimeout(…, 0) を使っているのは、requestAnimationFrame と違って
+   * 「描画のあと」に確実に戻ってくるため。scheduler.yield は対応状況が狭い。 */
+  function stepByStep(steps) {
+    var i = 0;
+    (function next() {
+      steps[i++]();
+      if (i < steps.length) setTimeout(next, 0);
+    })();
+  }
+
   function init() {
-    $('formA').innerHTML = personForm('A');
-    $('formB').innerHTML = personForm('B');
-    fillPref();
-    fillCity();
+    /* 先に軽いものだけ済ませ、重い組み立ては下の stepByStep にまとめて渡す。
+     * 操作の受け口（イベント）は同期で登録しておくので、組み立ての途中で
+     * 押されても取りこぼさない。 */
     updateYearNote();
-    // 初期の世帯構成：学生本人モードなので、学生1人を「詳しく計算する」状態で置く
-    addMember('child', true);
-    renderRoster();
-    buildStepNav();
 
     $('sourceList').innerHTML = D.SOURCES.map(function (s) {
       return '<div class="sourceline"><span class="cat">' + s.c + '</span>' + esc(s.t) +
@@ -1686,7 +1700,16 @@
     }, { rootMargin: '-45% 0px -50% 0px' });
     document.querySelectorAll('.step').forEach(function (s) { obs.observe(s); });
 
-    refreshAll();
+    /* ここから先が重い組み立て。上から順に、1区切りずつ進める。
+     * 順番には意味がある：入力欄 → 選択肢 → 世帯員 → 最初の計算。 */
+    stepByStep([
+      function () { $('formA').innerHTML = personForm('A'); },
+      function () { $('formB').innerHTML = personForm('B'); },
+      function () { fillPref(); fillCity(); },
+      // 初期の世帯構成：学生本人モードなので、学生1人を「詳しく計算する」状態で置く
+      function () { addMember('child', true); renderRoster(); buildStepNav(); },
+      function () { refreshAll(); document.body.dataset.ready = '1'; }
+    ]);
   }
 
   document.addEventListener('DOMContentLoaded', init);

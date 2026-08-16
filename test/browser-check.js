@@ -80,7 +80,20 @@ const check = (label, cond, detail) => {
     }
   });
   await send('Runtime.enable'); await send('Page.enable');
-  await send('Page.navigate', { url: pageUrl }); await sleep(1600);
+
+  /* 起動時の組み立ては何回かに分けて進むので、決め打ちの待ち時間ではなく
+   * 「終わった」印（body の data-ready）が付くのを待つ。遅い機械でも取りこぼさない。 */
+  const waitReady = async (limitMs = 15000) => {
+    for (let waited = 0; waited < limitMs; waited += 100) {
+      const r = await send('Runtime.evaluate', { expression: 'document.body && document.body.dataset.ready === "1"', returnByValue: true });
+      if (r.result && r.result.value) return waited;
+      await sleep(100);
+    }
+    throw new Error('起動が終わりませんでした（' + limitMs + 'ms 待った）');
+  };
+
+  await send('Page.navigate', { url: pageUrl });
+  console.log('  起動が終わるまで ' + (await waitReady()) + 'ms');
 
   const ev = async (expr) => {
     const r = await send('Runtime.evaluate', { expression: '(()=>{' + H + expr + '})()', returnByValue: true, awaitPromise: true });
@@ -1145,7 +1158,7 @@ const check = (label, cond, detail) => {
   for (const w of [1350, 768, 412, 360, 320]) {
     await send('Emulation.setDeviceMetricsOverride', { width: w, height: 900, deviceScaleFactor: 1, mobile: w < 800 });
     await send('Page.navigate', { url: pageUrl });
-    await sleep(1500);
+    await waitReady();
     const g = await ev(`const px=(el,p)=>Math.round(parseFloat(getComputedStyle(el)[p])||0);
       const nav=document.querySelector('.stepnav .wrap'), fr=document.getElementById('freshness');
       return { navRes:px(nav,'minHeight'), navAct:Math.round(nav.getBoundingClientRect().height),
@@ -1156,7 +1169,7 @@ const check = (label, cond, detail) => {
       `予約 ${g.frRes}px / 実際 ${g.frAct}px`);
   }
   await send('Emulation.clearDeviceMetricsOverride');
-  await send('Page.navigate', { url: pageUrl }); await sleep(1200);
+  await send('Page.navigate', { url: pageUrl }); await waitReady();
 
   console.log('\n=== 印刷（PDF出力） ===');
   await ev(`mode('student'); set('A_salary','5000000'); set('A_social','750000');
