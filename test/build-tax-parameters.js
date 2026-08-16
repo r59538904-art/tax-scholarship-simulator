@@ -24,7 +24,10 @@ const J = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   meta: {
     name: '税制パラメータ（住民税・所得税・国民健康保険・JASSO奨学金）',
-    generatedAt: new Date().toISOString().slice(0, 10),
+    /* 実行日は入れない。入れると「同じ data.js から作ったのに中身が変わる」ことになり、
+     * CI の「生成し直して差分が出ないか」の検査が、翌日以降かならず落ちてしまう。
+     * ここに書くべきは、中身がいつ時点のものかを表す data.js の最終確認日。 */
+    verifiedAt: D.VERIFIED_AT,
     generatedBy: 'node test/build-tax-parameters.js',
     masterFile: 'assets/data.js',
     note: 'このファイルは assets/data.js から生成した写しです。手で編集せず、data.js を直して再生成してください。',
