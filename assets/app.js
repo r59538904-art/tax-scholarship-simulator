@@ -1234,31 +1234,34 @@
     var stuLabel = studentMember ? memberTitle(studentMember) + '（学生本人）' : '学生本人';
     cols.push({ label: stuLabel, j: jS, missing: !jS && !!studentMember, none: !studentMember });
 
-    h += '<div class="tablewrap"><table class="detail"><thead><tr><th>項目</th>' +
-      cols.map(function (c) { return '<th class="num">' + esc(c.label) + '</th>'; }).join('') +
-      '</tr></thead><tbody>';
-    var cell = function (c, v) {
-      if (c.none) return '<td class="num muted">—</td>';
-      if (!c.j) return '<td class="num">' + yen(0) + '</td>';
-      return '<td class="num">' + yen(v(c.j)) + '</td>';
-    };
-    var line = function (label, v) {
-      return '<tr><th>' + label + '</th>' + cols.map(function (c) { return cell(c, v); }).join('') + '</tr>';
-    };
-    h += line('住民税の課税標準額', function (j) { return j.taxable; });
-    if (cols.some(function (c) { return c.j && c.j.taxableSep > 0; })) {
-      h += line('　うち総合課税・山林分', function (j) { return j.taxableSougou; });
-      h += line('　うち分離課税分', function (j) { return j.taxableSep; });
-    }
-    h += line('× 6％', function (j) { return j.taxable * 0.06; });
-    h += line('市町村民税の調整控除額', function (j) { return j.cityAdj; });
-    h += line('市町村民税の調整額（所得割額の調整措置）', function (j) { return j.cityChosei; });
-    h += line('− 差し引く額' + (seirei ? '（政令指定都市のため × 4分の3）' : ''),
-      function (j) { return (j.cityAdj + j.cityChosei) * fx; });
-    h += '<tr class="sum"><th>支給額算定基準額（100円未満切捨て）</th>' +
-      cols.map(function (c) { return cell(c, function (j) { return j.kijun; }); }).join('') + '</tr>' +
-      '<tr class="sum"><th>合計（学生本人＋生計維持者全員）</th>' +
-      '<td class="num" colspan="' + cols.length + '"><b>' + yen(sum) + '</b></td></tr></tbody></table></div>';
+    /* 人ごとに1つの表にする。
+     * 「項目 × 人」の1枚の表にすると、1人分の計算を追うのに列を目で行き来する
+     * ことになり、狭い画面ではそれが縦の行き来になって追えなくなる。
+     * 上から下へ読めば1人分の計算がそのまま終わる形にした。 */
+    var showSep = cols.some(function (c) { return c.j && c.j.taxableSep > 0; });
+    h += '<div class="jcalc">' + cols.map(function (c) {
+      var j = c.j;
+      var v = function (n) { return c.none ? '—' : yen(j ? n(j) : 0); };
+      var rows = [['住民税の課税標準額', v(function (x) { return x.taxable; })]];
+      if (showSep) {
+        rows.push(['　うち総合課税・山林分', v(function (x) { return x.taxableSougou; })]);
+        rows.push(['　うち分離課税分', v(function (x) { return x.taxableSep; })]);
+      }
+      rows.push(['× 6％', v(function (x) { return x.taxable * 0.06; })]);
+      rows.push(['市町村民税の調整控除額', v(function (x) { return x.cityAdj; })]);
+      rows.push(['市町村民税の調整額<br><span class="muted">（所得割額の調整措置）</span>',
+        v(function (x) { return x.cityChosei; })]);
+      rows.push(['− 差し引く額' + (seirei ? '<br><span class="muted">（政令指定都市のため×4分の3）</span>' : ''),
+        v(function (x) { return (x.cityAdj + x.cityChosei) * fx; })]);
+      return '<div class="jperson">' +
+        '<h4>' + esc(c.label) + '</h4>' +
+        '<table class="detail"><tbody>' +
+        rows.map(function (r) { return '<tr><th>' + r[0] + '</th><td class="num">' + r[1] + '</td></tr>'; }).join('') +
+        '<tr class="sum"><th>支給額算定基準額<br><span class="muted">（100円未満切捨て）</span></th>' +
+        '<td class="num">' + v(function (x) { return x.kijun; }) + '</td></tr>' +
+        '</tbody></table></div>';
+    }).join('') + '</div>' +
+      '<div class="jsum"><span>合計（学生本人＋生計維持者全員）</span><b>' + yen(sum) + '</b></div>';
 
     if (jA.exempt) h += '<p class="hint"><b>' + esc(labelA()) + 'は市町村民税の所得割が非課税</b>のため、支給額算定基準額は0円です。</p>';
     if (jB && jB.exempt) h += '<p class="hint"><b>' + esc(labelB()) + 'は市町村民税の所得割が非課税</b>のため、支給額算定基準額は0円です。</p>';
@@ -1530,11 +1533,24 @@
    * 出来上がった表から見出しを写す。新しい表を足しても自動で効く。 */
   function labelTableCells(root) {
     root.querySelectorAll('table').forEach(function (table) {
+      var rows = table.querySelectorAll('tbody tr, tr');
+      if (!rows.length) return;
+
+      /* 値の列がいくつあるかを覚えておく。
+       * 1つなら「項目 ─ 値」の1行として出せばよく、枠で囲う必要はない。
+       * 2つ以上（人ごとの比較など）のときだけ、1行を1つのまとまりにする。 */
+      var valueCols = 0;
+      [].forEach.call(rows, function (tr) {
+        var n = tr.querySelectorAll(':scope > td').length;
+        if (n > valueCols) valueCols = n;
+      });
+      table.setAttribute('data-value-cols', String(valueCols));
+
       var heads = [].map.call(table.querySelectorAll('thead th'), function (th) {
         return th.textContent.trim();
       });
-      if (!heads.length) return;
-      [].forEach.call(table.querySelectorAll('tbody tr'), function (tr) {
+      if (heads.length < 2) return;
+      [].forEach.call(rows, function (tr) {
         [].forEach.call(tr.children, function (cell, i) {
           // 行の見出し（左端の th）は積んだときの小見出しになるので、名札は要らない
           if (cell.tagName === 'TH') return;
@@ -1750,6 +1766,9 @@
     // 初期の世帯構成：学生本人モードなので、学生1人を「詳しく計算する」状態で置く
     chunks.push(function () { addMember('child', true); });
     chunks.push(function () { buildStepNav(); });
+    // 制度の解説にある表（HTMLに直接書いてあるもの）にも列の見出しを持たせる。
+    // 狭い画面ではこれを使って縦に積み直すため。
+    chunks.push(function () { labelTableCells(document); });
     chunks.push(function () { refreshAll(); document.body.dataset.ready = '1'; });
     stepByStep(chunks);
   }

@@ -820,6 +820,10 @@ const check = (label, cond, detail) => {
       const bad=[];
       document.querySelectorAll('main *').forEach(function(e){
         if(e.closest('.tablewrap')||e.classList.contains('tablewrap')||e.closest('.stepnav')) return;
+        // 表示されていない要素は画面をはみ出しようがない
+        // （狭い画面では表の見出し行を display:none にして縦に積み直すため）
+        if(e.offsetParent===null && getComputedStyle(e).position!=='fixed') return;
+        if(e.clientWidth===0 && e.clientHeight===0) return;
         if(getComputedStyle(e).overflowX!=='visible') return;
         const sw=e.scrollWidth, cw=e.clientWidth;   // スタイル確定後にまとめて読む
         if(sw<=cw+2) return;
@@ -1001,18 +1005,18 @@ const check = (label, cond, detail) => {
     // 学生本人の基準額が合計に入っていること（本人に所得割が出るケース）
     await ev(`set('${dp2}_salary','4000000'); document.getElementById('calcBtn').click(); return 1;`);
     await sleep(900);
+    /* 計算は人ごとの小さな表（.jperson）に分かれている。
+     * 各人の最終行（tr.sum）が支給額算定基準額、その下の .jsum が全員の合計。 */
     const sums = await ev(`
       const c=[...document.querySelectorAll('#results .card')]
         .find(x=>/支給額算定基準額の計算/.test(x.textContent));
-      const t=c.querySelector('table.detail');
-      const rows=[...t.tBodies[0].rows];
-      const kijun=rows.find(r=>/支給額算定基準額/.test(r.cells[0].textContent));
-      const total=rows.find(r=>/合計（学生本人/.test(r.cells[0].textContent));
       const n=s=>Number(String(s).replace(/[^0-9]/g,''))||0;
       return JSON.stringify({
-        each:[...kijun.cells].slice(1).map(c=>n(c.textContent)),
-        total:n(total.cells[1].textContent)});`);
+        each:[...c.querySelectorAll('.jperson table.detail tr.sum td')].map(td=>n(td.textContent)),
+        names:[...c.querySelectorAll('.jperson h4')].map(h=>h.textContent.trim()),
+        total:n(c.querySelector('.jsum b').textContent)});`);
     const s = JSON.parse(sums);
+    check('計算が人ごとに分かれている', s.names.length === 3, s.names.join(' / '));
     check('学生本人にも基準額が出る（0円ではない）', s.each[2] > 0, JSON.stringify(s.each));
     check('合計＝A＋B＋学生本人', s.each.reduce((a, b) => a + b, 0) === s.total,
       s.each.join('＋') + '＝' + s.total);
@@ -1178,6 +1182,29 @@ const check = (label, cond, detail) => {
         tbl.querySelectorAll('tbody tr > td').forEach(function (td) { if (!td.hasAttribute('data-label')) missing++; });
       });
       return { over: over, missing: missing, body: document.body.scrollWidth - document.body.clientWidth };`);
+    /* 「1文字ずつ縦に並ぶ」状態になっていないか。
+     * 列が細い表を狭い画面に押し込むとこうなる。要素の高さから行数を割り出すと
+     * 見出し行を数えてしまうので、文字そのものの行ボックス（Range）を数える。 */
+    const thin = await ev(`const bad=[]; const range=document.createRange();
+      document.querySelectorAll('body *').forEach(function (el) {
+        if (el.children.length) return;
+        const t=(el.textContent||'').trim();
+        if (t.length < 3) return;
+        const box=el.getBoundingClientRect();
+        if (box.height<=0 || box.width<=0) return;
+        let lines=0;
+        [].forEach.call(el.childNodes, function (n) {
+          if (n.nodeType!==3 || !n.data.trim()) return;
+          range.selectNodeContents(n);
+          lines += range.getClientRects().length;
+        });
+        /* 4文字程度の語が文中で2行にまたがるのは、ただの折り返しなので数えない。
+           5文字以上あって1行2.4文字以下＝箱が狭すぎて縦に並んでいる状態。 */
+        if (lines>=2 && t.length>=5 && t.length/lines <= 2.4)
+          bad.push(t.slice(0,16)+'（'+t.length+'文字を'+lines+'行）');
+      });
+      return bad;`);
+    check(`${w}px：1文字ずつ縦に並んでいる箇所がない`, thin.length === 0, thin.slice(0, 3).join(' / '));
     check(`${w}px：結果の表が横にはみ出さない`, r.over.length === 0, r.over.slice(0, 2).join(' / '));
     check(`${w}px：本文が横にずれない`, r.body <= 1, r.body + 'px');
     check(`${w}px：表のマスに列の見出しが入っている`, r.missing === 0, r.missing + '個 欠けている');
