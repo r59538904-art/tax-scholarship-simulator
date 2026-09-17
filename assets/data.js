@@ -474,18 +474,30 @@
    *   NEXT_REVIEW … 次に確認すべき日（この日を過ぎたら画面に注意を出す）
    * 税制は毎年変わるので、古いまま気づかず使われるのが一番こわい。
    * 画面にこの日付を出し、期限を過ぎたら警告する。
-   * data.js を直したら VERIFIED_AT も必ず更新すること。
+   *
+   * VERIFIED_AT は GitHub Actions（.github/workflows/check-updates.yml）が
+   * 毎月18日に公表資料と突き合わせ、全件一致したときだけ自動で進める。
+   * ズレが見つかった回は進めないので、予定日を過ぎて画面に注意が出る。
+   * 手で直すときは node test/set-verified-at.js を使うこと
+   * （日付の妥当性を確かめ、tax-parameters.json の作り直しも案内する）。
    * ----------------------------------------------------------------*/
-  var VERIFIED_AT = '2026-08-16';
-  var REVIEW_CYCLE_MONTHS = 1;      // 1か月ごとに見直す
+  var VERIFIED_AT = '2026-09-17';
+  var REVIEW_DAY = 18;              // 毎月この日に自動チェックが走る
 
   /* 次回の確認予定日は VERIFIED_AT から自動で出す。
    * 直書きにすると VERIFIED_AT だけ更新して次回日を直し忘れ、
    * 「最終確認は新しいのに期限切れ表示のまま」になるため。
+   *
+   * 「最終確認日の1か月後」ではなく「次にチェックが走る日」を出す。
+   * 1か月後にすると、確認が17日に行われた月は予定日が17日になり、
+   * 18日のチェックが走るまでの半日だけ期限切れ表示が出てしまう。
    * ローカル時刻で組み立てる（toISOString だと時差で1日ずれる）。 */
   var NEXT_REVIEW = (function () {
     var p = VERIFIED_AT.split('-');
-    var d = new Date(Number(p[0]), Number(p[1]) - 1 + REVIEW_CYCLE_MONTHS, Number(p[2]));
+    var y = Number(p[0]), m = Number(p[1]) - 1, day = Number(p[2]);
+    /* 最終確認日より後にくる、最初の「毎月18日」。
+     * 18日ちょうどに確認できた月は、翌月18日が次回になる。 */
+    var d = new Date(y, day >= REVIEW_DAY ? m + 1 : m, REVIEW_DAY);
     var two = function (v) { return (v < 10 ? '0' : '') + v; };
     return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate());
   })();
@@ -562,7 +574,7 @@
     DONATION: DONATION,
     SOURCES: SOURCES,
     VERIFIED_AT: VERIFIED_AT,
-    REVIEW_CYCLE_MONTHS: REVIEW_CYCLE_MONTHS,
+    REVIEW_DAY: REVIEW_DAY,
     NEXT_REVIEW: NEXT_REVIEW
   };
 

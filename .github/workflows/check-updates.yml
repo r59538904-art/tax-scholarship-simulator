@@ -1,25 +1,36 @@
 # 公表資料の見張り
 #
-# 税制の公表時期に合わせて自動で走り、収録値と公式ページがズレていたら
-# GitHub の Issue を立てます（＝GitHubからメール／スマホ通知が届きます）。
+# 税制の公表時期に合わせて自動で走り、収録値と公式ページを突き合わせます。
+#   ・すべて一致 … assets/data.js の「最終確認日（VERIFIED_AT）」を今日に進め、
+#                   コミットして公開サイトにも反映します
+#   ・ズレの疑い … GitHub の Issue を立てます（＝メール／スマホ通知が届きます）。
+#                   このときは日付を進めません。予定日を過ぎるとサイトのヘッダーが
+#                   自動で注意表示に変わり、利用者にも「確認が滞っている」と伝わります
 #
-# ★ データは自動で書き換えません。人が一次資料を見て直す前提です。
+# ★ 税額そのもの（税率・控除額）は自動で書き換えません。人が一次資料を見て直します。
+#   自動で進めるのは「いつ突き合わせたか」の日付だけです。
 name: 税制データの更新チェック
 
 on:
   schedule:
-    # 毎月5日の日本時間 朝9時（cron は UTC なので 0:00）。
+    # 毎月18日の日本時間 朝9時（cron は UTC なので 0:00）。
     # 税制の公表は時期が決まっているが、前倒し・追加公表・訂正もあるため
     # 特定の月だけ見るのではなく毎月確認する。
     #   1月 … 前年12月の税制改正大綱   4月 … 国保の政令改正（3月末公表）
     #   6月 … 住民税の当年度課税       7月 … JASSOの当年度案内
     #   10月 … 国税庁の年末調整資料（別表第五）
-    - cron: '0 0 5 * *'
+    #
+    # サイトの「次回の確認予定日」は最終確認日の1か月後（＝翌月18日）。
+    # この実行が一致で終われば予定日は毎月18日に更新され、注意表示は出ない。
+    # 実行が落ちるか、ズレが見つかって日付を進められなかったときだけ、
+    # 翌19日から注意表示が出る（＝放置すれば必ず画面に出る）。
+    - cron: '0 0 18 * *'
   workflow_dispatch:       # 手動でも回せる
 
 permissions:
-  contents: read
+  contents: write          # 最終確認日をコミットするために必要
   issues: write
+  actions: write           # 公開ワークフローを呼び出すために必要
 
 jobs:
   check:
@@ -38,11 +49,14 @@ jobs:
           node test/check-updates.js > check-result.txt 2>&1
           echo "---- 結果 ----"
           cat check-result.txt
-          # 「要確認」か「取得失敗」が1件でもあれば、人に知らせる
-          if grep -qE '要確認 [1-9]|取得失敗 [1-9]' check-result.txt; then
-            echo "needs_review=true" >> "$GITHUB_OUTPUT"
-          else
+          # 「ズレが見つからなかった」ではなく「全件そろって一致した」ことを確かめる。
+          # ズレの有無を grep するだけだと、スクリプトが途中で落ちて集計行が
+          # 出なかったときに「ズレなし」と誤判定し、確認していないのに
+          # 確認済みの日付を進めてしまう。集計行そのものを見て判定する。
+          if grep -qE '^変更なし [0-9]+ / 要確認 0 / 取得失敗 0$' check-result.txt; then
             echo "needs_review=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needs_review=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 47都道府県の超過課税を突き合わせる
@@ -52,10 +66,12 @@ jobs:
           node test/verify-prefectures.js > pref-result.txt 2>&1
           echo "---- 結果 ----"
           tail -5 pref-result.txt
-          if grep -qE '要確認 [1-9]' pref-result.txt; then
-            echo "pref_review=true" >> "$GITHUB_OUTPUT"
-          else
+          # 「目視要」は県のサイトが WAF でスクリプトを拒んだ分。金額が違うという
+          # 意味ではないので止めないが、件数は下のコミットに必ず書き残す。
+          if grep -qE '^一致 [0-9]+ / 要確認 0 / 目視要 [0-9]+$' pref-result.txt; then
             echo "pref_review=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "pref_review=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 結果を成果物として残す
@@ -67,6 +83,50 @@ jobs:
             check-result.txt
             pref-result.txt
           retention-days: 90
+
+      - name: すべて一致していれば「最終確認日」を今日に進める
+        id: bump
+        if: steps.check.outputs.needs_review == 'false' && steps.pref.outputs.pref_review == 'false'
+        run: |
+          set -e
+          TODAY=$(TZ=Asia/Tokyo date +%F)
+          node test/set-verified-at.js "$TODAY"
+          if git diff --quiet -- assets/data.js; then
+            echo "コミットするものはありません（既に $TODAY）。"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # 日付は tax-parameters.json にも入る（audit.js D-6 が一致を見ている）
+          node test/build-tax-parameters.js
+          # 日付を触っただけでも、公開前に計算が通ることを必ず確かめる。
+          # このコミットは GITHUB_TOKEN による push なので「検証」ワークフローは
+          # 走らない（GitHub の無限ループ防止）。その代わりをここで果たす。
+          node test/verify.js
+          node test/verify-calc.js
+          node test/audit.js
+          SUM1=$(grep -E '^変更なし ' check-result.txt | tail -1)
+          SUM2=$(grep -E '^一致 ' pref-result.txt | tail -1)
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/data.js tax-parameters.json
+          git commit \
+            -m "税制データの最終確認日を ${TODAY} に更新（自動）" \
+            -m "公表資料との突合がすべて一致したため、確認日だけを進めました。税率・控除額は変更していません。" \
+            -m "公表資料 … ${SUM1}" \
+            -m "都道府県の超過課税 … ${SUM2}" \
+            -m "実行ログ … ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          git push
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: 公開サイトに反映する
+        if: steps.bump.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # GITHUB_TOKEN で push したコミットは push イベントを起こさない
+          # （ワークフローの無限ループ防止）ため、公開を明示的に呼び出す。
+          # workflow_dispatch だけは例外的に GITHUB_TOKEN から起動できる。
+          gh workflow run deploy-pages.yml --ref main
 
       - name: 差分があれば Issue を立てる
         if: steps.check.outputs.needs_review == 'true' || steps.pref.outputs.pref_review == 'true'
@@ -80,6 +140,9 @@ jobs:
               '> **⚠ 「要確認」は必ずしも誤りではありません。**',
               '> ページの言い回しが変わった／表が画像になった／複数年度が併記されている、',
               '> でも同じ表示になります。**必ず一次資料を開いて確かめてください。**',
+              '',
+              'この回は**最終確認日を自動で進めていません**。予定日を過ぎると、',
+              'サイトのヘッダーが自動で注意表示に切り替わります。',
               '',
               '## 直しかた',
               '',
@@ -97,7 +160,12 @@ jobs:
               'node test/browser-check.js',
               '```',
               '',
-              '5. `assets/data.js` の `VERIFIED_AT` を今日の日付に更新する',
+              '5. 最終確認日を今日にする（`tax-parameters.json` も作り直す）',
+              '',
+              '```',
+              'node test/set-verified-at.js',
+              'node test/build-tax-parameters.js',
+              '```',
               '',
               '## 公表資料のチェック結果',
               '',
