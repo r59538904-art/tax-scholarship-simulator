@@ -481,7 +481,7 @@
    * 手で直すときは node test/set-verified-at.js を使うこと
    * （日付の妥当性を確かめ、tax-parameters.json の作り直しも案内する）。
    * ----------------------------------------------------------------*/
-  var VERIFIED_AT = '2026-09-17';
+  var VERIFIED_AT = '2026-09-18';
   var REVIEW_DAY = 18;              // 毎月この日に自動チェックが走る
 
   /* 次回の確認予定日は VERIFIED_AT から自動で出す。
